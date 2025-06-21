@@ -2,7 +2,8 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, Trash2 } from 'lucide-react';
 import { WeightEntry } from '../types/weight';
 import { format, parseISO } from 'date-fns';
@@ -40,27 +41,40 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
     weightChange = latestDisplay - previousDisplay;
   }
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white p-3 rounded-lg shadow-lg border">
-          <p className="font-semibold">{format(parseISO(data.date), 'MMM dd, yyyy')}</p>
-          <p className="text-blue-600">{`Weight: ${data.displayWeight.toFixed(1)} ${getWeightUnit()}`}</p>
-          {data.note && <p className="text-gray-600 text-sm mt-1">{data.note}</p>}
-          <Button
-            variant="destructive"
-            size="sm"
-            className="mt-2"
-            onClick={() => onDeleteWeight(data.id)}
-          >
-            <Trash2 className="h-3 w-3 mr-1" />
-            Delete
-          </Button>
-        </div>
-      );
-    }
-    return null;
+  const CustomDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    
+    return (
+      <HoverCard>
+        <HoverCardTrigger asChild>
+          <circle
+            cx={cx}
+            cy={cy}
+            r={6}
+            fill="#2563eb"
+            stroke="#2563eb"
+            strokeWidth={2}
+            className="cursor-pointer hover:r-8 transition-all"
+          />
+        </HoverCardTrigger>
+        <HoverCardContent className="w-64" side="top">
+          <div className="space-y-2">
+            <p className="font-semibold">{format(parseISO(payload.date), 'MMM dd, yyyy')}</p>
+            <p className="text-blue-600">{`Weight: ${payload.displayWeight.toFixed(1)} ${getWeightUnit()}`}</p>
+            {payload.note && <p className="text-gray-600 text-sm">{payload.note}</p>}
+            <Button
+              variant="destructive"
+              size="sm"
+              className="w-full"
+              onClick={() => onDeleteWeight(payload.id)}
+            >
+              <Trash2 className="h-3 w-3 mr-1" />
+              Delete Entry
+            </Button>
+          </div>
+        </HoverCardContent>
+      </HoverCard>
+    );
   };
 
   return (
@@ -104,7 +118,6 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
                   fontSize={12}
                   domain={['dataMin - 5', 'dataMax + 5']}
                 />
-                <Tooltip content={<CustomTooltip />} />
                 
                 {/* Actual weight line */}
                 <Line
@@ -112,8 +125,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
                   dataKey="displayWeight"
                   stroke="#2563eb"
                   strokeWidth={3}
-                  dot={{ fill: '#2563eb', strokeWidth: 2, r: 6 }}
-                  activeDot={{ r: 8, stroke: '#2563eb', strokeWidth: 2 }}
+                  dot={<CustomDot />}
                 />
                 
                 {/* Trend line */}
