@@ -59,6 +59,10 @@ const IndexContent = () => {
     setSavedPredictions(prev => [...prev, prediction]);
   };
 
+  const deletePrediction = (id: string) => {
+    setSavedPredictions(prev => prev.filter(prediction => prediction.id !== id));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="container mx-auto px-4 py-8">
@@ -93,6 +97,7 @@ const IndexContent = () => {
               savedPredictions={savedPredictions}
               onDeleteWeight={deleteWeight}
               onEditWeight={editWeight}
+              onDeletePrediction={deletePrediction}
             />
             <TrendAnalysis weights={weights} />
           </div>

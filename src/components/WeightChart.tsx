@@ -1,9 +1,8 @@
-
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
-import { TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { WeightEntry, SavedPrediction } from '../types/weight';
 import { format, parseISO } from 'date-fns';
 import { calculateTrend } from '../utils/calculations';
@@ -17,13 +16,15 @@ interface WeightChartProps {
   savedPredictions: SavedPrediction[];
   onDeleteWeight: (id: string) => void;
   onEditWeight: (id: string, updatedEntry: Partial<WeightEntry>) => void;
+  onDeletePrediction: (id: string) => void;
 }
 
 export const WeightChart: React.FC<WeightChartProps> = ({ 
   weights, 
   savedPredictions = [], 
   onDeleteWeight, 
-  onEditWeight 
+  onEditWeight,
+  onDeletePrediction 
 }) => {
   const { unitSystem, getWeightUnit, convertWeight } = useUnit();
   const currentUnit = unitSystem === 'metric' ? 'kg' : 'lbs';
@@ -71,8 +72,13 @@ export const WeightChart: React.FC<WeightChartProps> = ({
   }
 
   // Calculate trend once to avoid repeated calculations
-  const trend = weights.length > 1 ? calculateTrend(weights) : null;
-  console.log('Calculated trend:', trend);
+  let trend = null;
+  try {
+    trend = weights.length > 1 ? calculateTrend(weights) : null;
+    console.log('Calculated trend:', trend);
+  } catch (error) {
+    console.error('Error calculating trend:', error);
+  }
 
   // Process chart data with better error handling
   const chartData = weights.map((entry, index) => {
@@ -169,6 +175,13 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     }
   }, [combinedData]);
 
+  // Handle prediction deletion
+  const handleDeletePrediction = (predictionId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    console.log('Deleting prediction:', predictionId);
+    onDeletePrediction(predictionId);
+  };
+
   const CustomDot = (props: any) => {
     const { cx, cy, payload } = props;
     
@@ -177,15 +190,37 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     // Special styling for prediction points
     if (payload.isPrediction) {
       return (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={6}
-          fill="#f59e0b"
-          stroke="#d97706"
-          strokeWidth={2}
-          className="cursor-pointer"
-        />
+        <g>
+          <circle
+            cx={cx}
+            cy={cy}
+            r={6}
+            fill="#f59e0b"
+            stroke="#d97706"
+            strokeWidth={2}
+            className="cursor-pointer"
+          />
+          <circle
+            cx={cx + 12}
+            cy={cy - 12}
+            r={8}
+            fill="#ef4444"
+            stroke="#ffffff"
+            strokeWidth={1}
+            className="cursor-pointer hover:fill-red-600"
+            onClick={(e) => handleDeletePrediction(payload.id, e)}
+          />
+          <text
+            x={cx + 12}
+            y={cy - 8}
+            fill="white"
+            fontSize="10"
+            textAnchor="middle"
+            className="cursor-pointer pointer-events-none"
+          >
+            ×
+          </text>
+        </g>
       );
     }
     
@@ -213,7 +248,17 @@ export const WeightChart: React.FC<WeightChartProps> = ({
       if (data.isPrediction) {
         return (
           <div className="bg-white p-3 border border-amber-200 rounded-lg shadow-lg">
-            <p className="font-semibold text-sm text-amber-800">{data.predictionName}</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-semibold text-sm text-amber-800">{data.predictionName}</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-4 w-4 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                onClick={(e) => handleDeletePrediction(data.id, e)}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
             <p className="text-amber-600 font-medium">{`${data.displayWeight.toFixed(1)} ${getWeightUnit()}`}</p>
             <p className="text-xs text-amber-600">Predicted for {format(parseISO(data.date), 'MMM dd, yyyy')}</p>
           </div>
@@ -299,7 +344,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
             <div className="flex items-center gap-2 text-xs text-gray-600 mt-2">
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                <span>Predictions</span>
+                <span>Predictions (click red × to delete)</span>
               </div>
             </div>
           )}
@@ -312,7 +357,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
           >
             <div style={{ minWidth: Math.max(800, combinedData.length * 60) }}>
               <ResponsiveContainer width="100%" height={320}>
-                <LineChart data={combinedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <LineChart data={combinedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
                   <XAxis 
                     dataKey="formattedDate" 
