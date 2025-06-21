@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { WeightForm } from '../components/WeightForm';
 import { WeightChart } from '../components/WeightChart';
@@ -196,16 +195,6 @@ const IndexContent = () => {
               compositions={bodyCompositions}
               onDeleteComposition={deleteBodyComposition}
               onEditComposition={editBodyComposition}
-            />
-            
-            <BodyCompositionTrends 
-              bodyCompData={bodyCompositions.map(comp => ({
-                date: comp.date.split('T')[0],
-                bodyFat: comp.bodyFatPercentage || 0,
-                muscleMass: comp.muscleMass || 0,
-                weight: weights.find(w => w.date === comp.date)?.weight || 0
-              }))}
-              bodyCompTrends={null}
             />
             
             <BodybuildingAnalytics 
