@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
@@ -339,6 +338,6 @@ export const BodybuildingAnalytics: React.FC<BodybuildingAnalyticsProps> = ({
           </div>
         </CardContent>
       </div>
-    );
-  };
+    </div>
+  );
 };
