@@ -113,6 +113,20 @@ const IndexContent = () => {
     setBodyCompositions(prev => [...prev, composition].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
   };
 
+  const deleteBodyComposition = (id: string) => {
+    setBodyCompositions(prev => prev.filter(comp => comp.id !== id));
+  };
+
+  const editBodyComposition = (id: string, updatedComposition: Partial<BodyComposition>) => {
+    setBodyCompositions(prev => 
+      prev.map(comp => 
+        comp.id === id 
+          ? { ...comp, ...updatedComposition }
+          : comp
+      ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    );
+  };
+
   const addBodybuildingGoal = (goal: BodybuildingGoal) => {
     // Deactivate other goals of the same phase
     setBodybuildingGoals(prev => 
@@ -178,7 +192,11 @@ const IndexContent = () => {
               onDeletePrediction={deletePrediction}
             />
             
-            <BodyFatChart compositions={bodyCompositions} />
+            <BodyFatChart 
+              compositions={bodyCompositions}
+              onDeleteComposition={deleteBodyComposition}
+              onEditComposition={editBodyComposition}
+            />
             
             <BodyCompositionTrends 
               bodyCompData={bodyCompositions.map(comp => ({
