@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { WeightForm } from '../components/WeightForm';
 import { WeightChart } from '../components/WeightChart';
@@ -8,6 +7,7 @@ import { UnitToggle } from '../components/UnitToggle';
 import { UnitProvider } from '../contexts/UnitContext';
 import { WeightEntry } from '../types/weight';
 import { Scale } from 'lucide-react';
+import { BMICalculator } from '../components/BMICalculator';
 
 const IndexContent = () => {
   const [weights, setWeights] = useState<WeightEntry[]>([]);
@@ -66,6 +66,7 @@ const IndexContent = () => {
           <div className="space-y-6">
             <UnitToggle />
             <WeightForm onAddWeight={addWeight} />
+            <BMICalculator weights={weights} />
             <EventPredictor weights={weights} />
           </div>
 
