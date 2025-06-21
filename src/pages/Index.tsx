@@ -33,6 +33,16 @@ const IndexContent = () => {
     setWeights(prev => prev.filter(entry => entry.id !== id));
   };
 
+  const editWeight = (id: string, updatedEntry: Partial<WeightEntry>) => {
+    setWeights(prev => 
+      prev.map(entry => 
+        entry.id === id 
+          ? { ...entry, ...updatedEntry }
+          : entry
+      ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="container mx-auto px-4 py-8">
@@ -61,7 +71,11 @@ const IndexContent = () => {
 
           {/* Right Column - Chart and Analysis */}
           <div className="lg:col-span-2 space-y-6">
-            <WeightChart weights={weights} onDeleteWeight={deleteWeight} />
+            <WeightChart 
+              weights={weights} 
+              onDeleteWeight={deleteWeight}
+              onEditWeight={editWeight}
+            />
             <TrendAnalysis weights={weights} />
           </div>
         </div>
