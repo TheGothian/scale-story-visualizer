@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { WeightEntry, SavedPrediction } from '../types/weight';
 import { format, parseISO } from 'date-fns';
 import { calculateTrend } from '../utils/calculations';
@@ -26,6 +27,9 @@ export const WeightChart: React.FC<WeightChartProps> = ({
 }) => {
   const { unitSystem, getWeightUnit, convertWeight } = useUnit();
   const currentUnit = unitSystem === 'metric' ? 'kg' : 'lbs';
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
   
   const {
     editWeight,
@@ -75,6 +79,37 @@ export const WeightChart: React.FC<WeightChartProps> = ({
   const combinedData = [...chartData, ...predictionData].sort((a, b) => 
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
+
+  const checkScrollButtons = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
+    }
+  };
+
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+      setTimeout(checkScrollButtons, 300);
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+      setTimeout(checkScrollButtons, 300);
+    }
+  };
+
+  React.useEffect(() => {
+    checkScrollButtons();
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', checkScrollButtons);
+      return () => container.removeEventListener('scroll', checkScrollButtons);
+    }
+  }, [combinedData]);
 
   const trend = weights.length > 1 ? calculateTrend(weights) : null;
   const latestWeight = weights[weights.length - 1];
@@ -155,20 +190,44 @@ export const WeightChart: React.FC<WeightChartProps> = ({
         <CardHeader className="pb-4">
           <div className="flex justify-between items-center">
             <CardTitle className="text-blue-700">Weight Progress</CardTitle>
-            {latestWeight && (
-              <div className="flex items-center gap-2 text-sm">
-                {weightChange > 0 ? (
-                  <TrendingUp className="h-4 w-4 text-red-500" />
-                ) : weightChange < 0 ? (
-                  <TrendingDown className="h-4 w-4 text-green-500" />
-                ) : (
-                  <Minus className="h-4 w-4 text-gray-500" />
-                )}
-                <span className={weightChange > 0 ? 'text-red-500' : weightChange < 0 ? 'text-green-500' : 'text-gray-500'}>
-                  {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} {getWeightUnit()}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {latestWeight && (
+                <div className="flex items-center gap-2 text-sm">
+                  {weightChange > 0 ? (
+                    <TrendingUp className="h-4 w-4 text-red-500" />
+                  ) : weightChange < 0 ? (
+                    <TrendingDown className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Minus className="h-4 w-4 text-gray-500" />
+                  )}
+                  <span className={weightChange > 0 ? 'text-red-500' : weightChange < 0 ? 'text-green-500' : 'text-gray-500'}>
+                    {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} {getWeightUnit()}
+                  </span>
+                </div>
+              )}
+              {combinedData.length > 8 && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={scrollLeft}
+                    disabled={!canScrollLeft}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={scrollRight}
+                    disabled={!canScrollRight}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
           {savedPredictions.length > 0 && (
             <div className="flex items-center gap-2 text-xs text-gray-600 mt-2">
@@ -185,47 +244,53 @@ export const WeightChart: React.FC<WeightChartProps> = ({
               <p>No weight entries yet. Start by logging your first weight!</p>
             </div>
           ) : (
-            <div className="h-80" onClick={handleChartClick}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={combinedData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
-                  <XAxis 
-                    dataKey="formattedDate" 
-                    stroke="#64748b"
-                    fontSize={12}
-                  />
-                  <YAxis 
-                    stroke="#64748b"
-                    fontSize={12}
-                    domain={['dataMin - 5', 'dataMax + 5']}
-                  />
-                  
-                  <Tooltip content={<CustomTooltip />} />
-                  
-                  {/* Actual weight line */}
-                  <Line
-                    type="monotone"
-                    dataKey="displayWeight"
-                    stroke="#2563eb"
-                    strokeWidth={3}
-                    dot={<CustomDot />}
-                    connectNulls={false}
-                  />
-                  
-                  {/* Trend line */}
-                  {trend && weights.length > 2 && (
+            <div 
+              ref={scrollContainerRef}
+              className="h-80 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+              onClick={handleChartClick}
+            >
+              <div style={{ minWidth: Math.max(800, combinedData.length * 60) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={combinedData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
+                    <XAxis 
+                      dataKey="formattedDate" 
+                      stroke="#64748b"
+                      fontSize={12}
+                    />
+                    <YAxis 
+                      stroke="#64748b"
+                      fontSize={12}
+                      domain={['dataMin - 5', 'dataMax + 5']}
+                    />
+                    
+                    <Tooltip content={<CustomTooltip />} />
+                    
+                    {/* Actual weight line */}
                     <Line
                       type="monotone"
-                      dataKey="trend"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={false}
-                      activeDot={false}
+                      dataKey="displayWeight"
+                      stroke="#2563eb"
+                      strokeWidth={3}
+                      dot={<CustomDot />}
+                      connectNulls={false}
                     />
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
+                    
+                    {/* Trend line */}
+                    {trend && weights.length > 2 && (
+                      <Line
+                        type="monotone"
+                        dataKey="trend"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        strokeDasharray="5 5"
+                        dot={false}
+                        activeDot={false}
+                      />
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
         </CardContent>
