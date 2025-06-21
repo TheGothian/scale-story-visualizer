@@ -66,23 +66,42 @@ export const BodybuildingAnalytics: React.FC<BodybuildingAnalyticsProps> = ({
     return symmetryData;
   };
 
-  // Calculate phase progress
-  const calculatePhaseProgress = () => {
-    const activeGoal = goals.find(goal => goal.isActive);
-    if (!activeGoal) return null;
+  // Calculate phase progress for all active goals
+  const calculateActivePhaseProgress = () => {
+    const activeGoals = goals.filter(goal => goal.isActive);
+    if (activeGoals.length === 0) return [];
 
-    const daysInPhase = differenceInDays(new Date(), parseISO(activeGoal.createdAt));
-    const totalPhaseDays = differenceInDays(parseISO(activeGoal.targetDate), parseISO(activeGoal.createdAt));
-    const progressPercent = Math.min(100, (daysInPhase / totalPhaseDays) * 100);
+    return activeGoals.map(goal => {
+      const daysInPhase = differenceInDays(new Date(), parseISO(goal.createdAt));
+      const totalPhaseDays = differenceInDays(parseISO(goal.targetDate), parseISO(goal.createdAt));
+      const progressPercent = Math.min(100, (daysInPhase / totalPhaseDays) * 100);
 
-    return {
-      phase: activeGoal.phase,
-      name: activeGoal.name,
-      daysInPhase,
-      totalDays: totalPhaseDays,
-      progressPercent,
-      remainingDays: Math.max(0, totalPhaseDays - daysInPhase)
-    };
+      return {
+        id: goal.id,
+        phase: goal.phase,
+        name: goal.name,
+        daysInPhase,
+        totalDays: totalPhaseDays,
+        progressPercent,
+        remainingDays: Math.max(0, totalPhaseDays - daysInPhase)
+      };
+    });
+  };
+
+  // Get phase color based on phase type
+  const getPhaseColor = (phase: string) => {
+    switch (phase) {
+      case 'cutting':
+        return { bg: 'from-red-500 to-red-600', light: 'from-red-50 to-red-100', text: 'text-red-700' };
+      case 'bulking':
+        return { bg: 'from-green-500 to-green-600', light: 'from-green-50 to-green-100', text: 'text-green-700' };
+      case 'maintenance':
+        return { bg: 'from-blue-500 to-blue-600', light: 'from-blue-50 to-blue-100', text: 'text-blue-700' };
+      case 'contest-prep':
+        return { bg: 'from-purple-500 to-purple-600', light: 'from-purple-50 to-purple-100', text: 'text-purple-700' };
+      default:
+        return { bg: 'from-orange-500 to-orange-600', light: 'from-orange-50 to-orange-100', text: 'text-orange-700' };
+    }
   };
 
   // Calculate body composition trends
@@ -103,54 +122,64 @@ export const BodybuildingAnalytics: React.FC<BodybuildingAnalyticsProps> = ({
   };
 
   const symmetryAnalysis = calculateSymmetryAnalysis();
-  const phaseProgress = calculatePhaseProgress();
+  const activePhaseProgress = calculateActivePhaseProgress();
   const bodyCompTrends = calculateBodyCompTrends();
 
   return (
     <div className="space-y-6">
-      {/* Phase Progress */}
-      {phaseProgress && (
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-orange-700">Current Phase Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-lg">{phaseProgress.name}</h3>
-                  <p className="text-sm text-gray-600 capitalize">{phaseProgress.phase.replace('-', ' ')} Phase</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-orange-600">{phaseProgress.progressPercent.toFixed(0)}%</p>
-                  <p className="text-sm text-gray-600">Complete</p>
-                </div>
-              </div>
-              
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div 
-                  className="bg-gradient-to-r from-orange-500 to-orange-600 h-3 rounded-full transition-all duration-300"
-                  style={{ width: `${phaseProgress.progressPercent}%` }}
-                />
-              </div>
-              
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-lg font-semibold text-blue-600">{phaseProgress.daysInPhase}</p>
-                  <p className="text-xs text-gray-600">Days In</p>
-                </div>
-                <div>
-                  <p className="text-lg font-semibold text-green-600">{phaseProgress.remainingDays}</p>
-                  <p className="text-xs text-gray-600">Days Left</p>
-                </div>
-                <div>
-                  <p className="text-lg font-semibold text-purple-600">{phaseProgress.totalDays}</p>
-                  <p className="text-xs text-gray-600">Total Days</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Multiple Phase Progress Cards */}
+      {activePhaseProgress.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-gray-800">Active Phase Progress</h2>
+          {activePhaseProgress.map((phaseProgress) => {
+            const colors = getPhaseColor(phaseProgress.phase);
+            return (
+              <Card key={phaseProgress.id} className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className={colors.text}>
+                    {phaseProgress.name} - {phaseProgress.phase.charAt(0).toUpperCase() + phaseProgress.phase.slice(1).replace('-', ' ')}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg">{phaseProgress.name}</h3>
+                        <p className="text-sm text-gray-600 capitalize">{phaseProgress.phase.replace('-', ' ')} Phase</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-2xl font-bold ${colors.text}`}>{phaseProgress.progressPercent.toFixed(0)}%</p>
+                        <p className="text-sm text-gray-600">Complete</p>
+                      </div>
+                    </div>
+                    
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div 
+                        className={`bg-gradient-to-r ${colors.bg} h-3 rounded-full transition-all duration-300`}
+                        style={{ width: `${phaseProgress.progressPercent}%` }}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-lg font-semibold text-blue-600">{phaseProgress.daysInPhase}</p>
+                        <p className="text-xs text-gray-600">Days In</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold text-green-600">{phaseProgress.remainingDays}</p>
+                        <p className="text-xs text-gray-600">Days Left</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold text-purple-600">{phaseProgress.totalDays}</p>
+                        <p className="text-xs text-gray-600">Total Days</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {/* Body Composition Trends */}
@@ -309,7 +338,7 @@ export const BodybuildingAnalytics: React.FC<BodybuildingAnalyticsProps> = ({
             </div>
           </div>
         </CardContent>
-      </Card>
-    </div>
-  );
+      </div>
+    );
+  };
 };
