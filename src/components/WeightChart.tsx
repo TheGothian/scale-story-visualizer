@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { WeightEntry } from '../types/weight';
 import { format, parseISO } from 'date-fns';
@@ -81,22 +81,6 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
     );
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900">{format(parseISO(data.date), 'MMM dd, yyyy')}</p>
-          <p className="text-blue-600 font-semibold">{`${data.displayWeight.toFixed(1)} ${getWeightUnit()}`}</p>
-          {data.note && (
-            <p className="text-gray-600 text-sm mt-1">{data.note}</p>
-          )}
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <>
       <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -139,7 +123,6 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
                     fontSize={12}
                     domain={['dataMin - 5', 'dataMax + 5']}
                   />
-                  <Tooltip content={<CustomTooltip />} />
                   
                   {/* Actual weight line */}
                   <Line
