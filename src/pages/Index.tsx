@@ -7,15 +7,21 @@ import { EventPredictor } from '../components/EventPredictor';
 import { UnitToggle } from '../components/UnitToggle';
 import { UnitProvider } from '../contexts/UnitContext';
 import { WeightEntry, SavedPrediction, WeightGoal } from '../types/weight';
+import { BodyComposition, BodybuildingGoal } from '../types/bodybuilding';
 import { Scale } from 'lucide-react';
 import { BMICalculator } from '../components/BMICalculator';
 import { EnhancedTrendAnalysis } from '../components/EnhancedTrendAnalysis';
 import { GoalSetter } from '../components/GoalSetter';
+import { BodyCompositionCalculator } from '../components/BodyCompositionCalculator';
+import { PhaseGoalSetter } from '../components/PhaseGoalSetter';
+import { BodybuildingAnalytics } from '../components/BodybuildingAnalytics';
 
 const IndexContent = () => {
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [savedPredictions, setSavedPredictions] = useState<SavedPrediction[]>([]);
   const [weightGoals, setWeightGoals] = useState<WeightGoal[]>([]);
+  const [bodyCompositions, setBodyCompositions] = useState<BodyComposition[]>([]);
+  const [bodybuildingGoals, setBodybuildingGoals] = useState<BodybuildingGoal[]>([]);
 
   // Load data from localStorage on component mount
   useEffect(() => {
@@ -33,22 +39,38 @@ const IndexContent = () => {
     if (savedGoals) {
       setWeightGoals(JSON.parse(savedGoals));
     }
+
+    const savedCompositions = localStorage.getItem('bodyCompositions');
+    if (savedCompositions) {
+      setBodyCompositions(JSON.parse(savedCompositions));
+    }
+
+    const savedBBGoals = localStorage.getItem('bodybuildingGoals');
+    if (savedBBGoals) {
+      setBodybuildingGoals(JSON.parse(savedBBGoals));
+    }
   }, []);
 
-  // Save data to localStorage whenever weights change
+  // Save data to localStorage whenever data changes
   useEffect(() => {
     localStorage.setItem('weightEntries', JSON.stringify(weights));
   }, [weights]);
 
-  // Save predictions to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('savedPredictions', JSON.stringify(savedPredictions));
   }, [savedPredictions]);
 
-  // Save goals to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('weightGoals', JSON.stringify(weightGoals));
   }, [weightGoals]);
+
+  useEffect(() => {
+    localStorage.setItem('bodyCompositions', JSON.stringify(bodyCompositions));
+  }, [bodyCompositions]);
+
+  useEffect(() => {
+    localStorage.setItem('bodybuildingGoals', JSON.stringify(bodybuildingGoals));
+  }, [bodybuildingGoals]);
 
   const addWeight = (entry: WeightEntry) => {
     setWeights(prev => [...prev, entry].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
@@ -84,6 +106,22 @@ const IndexContent = () => {
     setWeightGoals(prev => prev.filter(goal => goal.id !== id));
   };
 
+  const saveBodyComposition = (composition: BodyComposition) => {
+    setBodyCompositions(prev => [...prev, composition].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+  };
+
+  const addBodybuildingGoal = (goal: BodybuildingGoal) => {
+    // Deactivate other goals of the same phase
+    setBodybuildingGoals(prev => 
+      prev.map(g => g.phase === goal.phase ? { ...g, isActive: false } : g)
+    );
+    setBodybuildingGoals(prev => [...prev, goal]);
+  };
+
+  const deleteBodybuildingGoal = (id: string) => {
+    setBodybuildingGoals(prev => prev.filter(goal => goal.id !== id));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="container mx-auto px-4 py-8">
@@ -94,11 +132,11 @@ const IndexContent = () => {
               <Scale className="h-8 w-8 text-blue-600" />
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-              Weight Tracker
+              Bodybuilding Tracker
             </h1>
           </div>
           <p className="text-gray-600 text-lg">
-            Track your weight journey and achieve your goals
+            Track your physique transformation and achieve your bodybuilding goals
           </p>
         </div>
 
@@ -107,6 +145,16 @@ const IndexContent = () => {
           <div className="space-y-6">
             <UnitToggle />
             <WeightForm onAddWeight={addWeight} />
+            <BodyCompositionCalculator 
+              weights={weights}
+              onSaveComposition={saveBodyComposition}
+              compositions={bodyCompositions}
+            />
+            <PhaseGoalSetter 
+              goals={bodybuildingGoals}
+              onAddGoal={addBodybuildingGoal}
+              onDeleteGoal={deleteBodybuildingGoal}
+            />
             <GoalSetter 
               goals={weightGoals}
               onAddGoal={addGoal}
@@ -116,7 +164,7 @@ const IndexContent = () => {
             <EventPredictor weights={weights} onSavePrediction={savePrediction} />
           </div>
 
-          {/* Right Column - Chart and Analysis */}
+          {/* Right Column - Charts and Analysis */}
           <div className="lg:col-span-2 space-y-6">
             <WeightChart 
               weights={weights}
@@ -125,6 +173,13 @@ const IndexContent = () => {
               onEditWeight={editWeight}
               onDeletePrediction={deletePrediction}
             />
+            
+            <BodybuildingAnalytics 
+              weights={weights}
+              compositions={bodyCompositions}
+              goals={bodybuildingGoals}
+            />
+            
             <EnhancedTrendAnalysis weights={weights} />
           </div>
         </div>
