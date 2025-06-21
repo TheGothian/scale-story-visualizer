@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { WeightForm } from '../components/WeightForm';
 import { WeightChart } from '../components/WeightChart';
@@ -9,6 +8,7 @@ import { UnitProvider } from '../contexts/UnitContext';
 import { WeightEntry, SavedPrediction } from '../types/weight';
 import { Scale } from 'lucide-react';
 import { BMICalculator } from '../components/BMICalculator';
+import { EnhancedTrendAnalysis } from '../components/EnhancedTrendAnalysis';
 
 const IndexContent = () => {
   const [weights, setWeights] = useState<WeightEntry[]>([]);
@@ -99,7 +99,7 @@ const IndexContent = () => {
               onEditWeight={editWeight}
               onDeletePrediction={deletePrediction}
             />
-            <TrendAnalysis weights={weights} />
+            <EnhancedTrendAnalysis weights={weights} />
           </div>
         </div>
       </div>
