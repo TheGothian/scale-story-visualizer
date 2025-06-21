@@ -15,6 +15,9 @@ import { GoalSetter } from '../components/GoalSetter';
 import { BodyCompositionCalculator } from '../components/BodyCompositionCalculator';
 import { PhaseGoalSetter } from '../components/PhaseGoalSetter';
 import { BodybuildingAnalytics } from '../components/BodybuildingAnalytics';
+import { BodyFatForm } from '../components/BodyFatForm';
+import { BodyFatChart } from '../components/BodyFatChart';
+import { BodyCompositionTrends } from '../components/BodyCompositionTrends';
 
 const IndexContent = () => {
   const [weights, setWeights] = useState<WeightEntry[]>([]);
@@ -145,6 +148,7 @@ const IndexContent = () => {
           <div className="space-y-6">
             <UnitToggle />
             <WeightForm onAddWeight={addWeight} />
+            <BodyFatForm onSaveComposition={saveBodyComposition} />
             <BodyCompositionCalculator 
               weights={weights}
               onSaveComposition={saveBodyComposition}
@@ -172,6 +176,18 @@ const IndexContent = () => {
               onDeleteWeight={deleteWeight}
               onEditWeight={editWeight}
               onDeletePrediction={deletePrediction}
+            />
+            
+            <BodyFatChart compositions={bodyCompositions} />
+            
+            <BodyCompositionTrends 
+              bodyCompData={bodyCompositions.map(comp => ({
+                date: comp.date.split('T')[0],
+                bodyFat: comp.bodyFatPercentage || 0,
+                muscleMass: comp.muscleMass || 0,
+                weight: weights.find(w => w.date === comp.date)?.weight || 0
+              }))}
+              bodyCompTrends={null}
             />
             
             <BodybuildingAnalytics 
