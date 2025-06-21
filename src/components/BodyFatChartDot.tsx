@@ -4,7 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
 import { BodyComposition } from '../types/bodybuilding';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 
 interface BodyFatChartDotProps {
   cx: number;
@@ -12,6 +12,7 @@ interface BodyFatChartDotProps {
   payload: BodyComposition & {
     bodyFat: number;
     date: string;
+    fullDate?: string;
   };
   isActive: boolean;
   isPopoverOpen: boolean;
@@ -32,6 +33,30 @@ export const BodyFatChartDot: React.FC<BodyFatChartDotProps> = ({
   onDeleteClick,
   onPopoverOpenChange,
 }) => {
+  // Use fullDate if available (original ISO date), otherwise fall back to date
+  const dateToFormat = payload.fullDate || payload.date;
+  
+  // Safely format the date with error handling
+  const formatDate = (dateString: string) => {
+    try {
+      const parsedDate = parseISO(dateString);
+      if (isValid(parsedDate)) {
+        return format(parsedDate, 'MMM dd, yyyy');
+      }
+      // If parseISO fails, try parsing as a regular Date
+      const date = new Date(dateString);
+      if (isValid(date)) {
+        return format(date, 'MMM dd, yyyy');
+      }
+      return dateString; // Return original string if all parsing fails
+    } catch (error) {
+      console.error('Date formatting error:', error, 'for date:', dateString);
+      return dateString; // Return original string on error
+    }
+  };
+
+  const formattedDate = formatDate(dateToFormat);
+
   return (
     <Popover 
       open={isActive && isPopoverOpen} 
@@ -61,7 +86,7 @@ export const BodyFatChartDot: React.FC<BodyFatChartDotProps> = ({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="space-y-2">
-          <p className="font-semibold text-sm">{format(parseISO(payload.date), 'MMM dd, yyyy')}</p>
+          <p className="font-semibold text-sm">{formattedDate}</p>
           <p className="text-red-600 font-medium">{`${payload.bodyFat.toFixed(1)}%`}</p>
           <div className="flex gap-2 pt-2">
             <Button
