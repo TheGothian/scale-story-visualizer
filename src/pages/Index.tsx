@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { WeightForm } from '../components/WeightForm';
 import { WeightChart } from '../components/WeightChart';
@@ -5,14 +6,16 @@ import { TrendAnalysis } from '../components/TrendAnalysis';
 import { EventPredictor } from '../components/EventPredictor';
 import { UnitToggle } from '../components/UnitToggle';
 import { UnitProvider } from '../contexts/UnitContext';
-import { WeightEntry, SavedPrediction } from '../types/weight';
+import { WeightEntry, SavedPrediction, WeightGoal } from '../types/weight';
 import { Scale } from 'lucide-react';
 import { BMICalculator } from '../components/BMICalculator';
 import { EnhancedTrendAnalysis } from '../components/EnhancedTrendAnalysis';
+import { GoalSetter } from '../components/GoalSetter';
 
 const IndexContent = () => {
   const [weights, setWeights] = useState<WeightEntry[]>([]);
   const [savedPredictions, setSavedPredictions] = useState<SavedPrediction[]>([]);
+  const [weightGoals, setWeightGoals] = useState<WeightGoal[]>([]);
 
   // Load data from localStorage on component mount
   useEffect(() => {
@@ -25,6 +28,11 @@ const IndexContent = () => {
     if (savedPreds) {
       setSavedPredictions(JSON.parse(savedPreds));
     }
+
+    const savedGoals = localStorage.getItem('weightGoals');
+    if (savedGoals) {
+      setWeightGoals(JSON.parse(savedGoals));
+    }
   }, []);
 
   // Save data to localStorage whenever weights change
@@ -36,6 +44,11 @@ const IndexContent = () => {
   useEffect(() => {
     localStorage.setItem('savedPredictions', JSON.stringify(savedPredictions));
   }, [savedPredictions]);
+
+  // Save goals to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('weightGoals', JSON.stringify(weightGoals));
+  }, [weightGoals]);
 
   const addWeight = (entry: WeightEntry) => {
     setWeights(prev => [...prev, entry].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
@@ -63,6 +76,14 @@ const IndexContent = () => {
     setSavedPredictions(prev => prev.filter(prediction => prediction.id !== id));
   };
 
+  const addGoal = (goal: WeightGoal) => {
+    setWeightGoals(prev => [...prev, goal]);
+  };
+
+  const deleteGoal = (id: string) => {
+    setWeightGoals(prev => prev.filter(goal => goal.id !== id));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="container mx-auto px-4 py-8">
@@ -86,6 +107,11 @@ const IndexContent = () => {
           <div className="space-y-6">
             <UnitToggle />
             <WeightForm onAddWeight={addWeight} />
+            <GoalSetter 
+              goals={weightGoals}
+              onAddGoal={addGoal}
+              onDeleteGoal={deleteGoal}
+            />
             <BMICalculator weights={weights} />
             <EventPredictor weights={weights} onSavePrediction={savePrediction} />
           </div>

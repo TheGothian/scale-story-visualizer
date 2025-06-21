@@ -40,4 +40,15 @@ export interface SavedPrediction {
   createdAt: string;
 }
 
+export interface WeightGoal {
+  id: string;
+  name: string;
+  targetWeight: number;
+  targetDate: string;
+  description?: string;
+  unit: 'kg' | 'lbs';
+  createdAt: string;
+  isActive: boolean;
+}
+
 export type UnitSystem = 'metric' | 'imperial';
