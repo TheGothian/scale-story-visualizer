@@ -11,12 +11,14 @@ import { format, differenceInDays, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { WeightEntry } from '../types/weight';
 import { calculateTrend, predictWeight } from '../utils/calculations';
+import { useUnit } from '../contexts/UnitContext';
 
 interface EventPredictorProps {
   weights: WeightEntry[];
 }
 
 export const EventPredictor: React.FC<EventPredictorProps> = ({ weights }) => {
+  const { getWeightUnit, convertWeight, unitSystem } = useUnit();
   const [eventName, setEventName] = useState('');
   const [eventDate, setEventDate] = useState<Date>();
   const [prediction, setPrediction] = useState<number | null>(null);
@@ -34,6 +36,7 @@ export const EventPredictor: React.FC<EventPredictorProps> = ({ weights }) => {
 
   const trend = weights.length > 1 ? calculateTrend(weights) : null;
   const isLosingWeight = trend && trend.slope < 0;
+  const currentUnit = getWeightUnit();
 
   return (
     <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -101,14 +104,14 @@ export const EventPredictor: React.FC<EventPredictorProps> = ({ weights }) => {
               <h4 className="font-semibold text-gray-800">Prediction for {eventName}</h4>
             </div>
             <p className="text-lg font-bold text-gray-900">
-              {prediction.toFixed(1)} lbs
+              {prediction.toFixed(1)} {currentUnit}
             </p>
             <p className="text-sm text-gray-600 mt-1">
               on {format(eventDate, 'MMMM dd, yyyy')}
             </p>
             {weights.length > 0 && (
               <p className="text-sm text-gray-500 mt-2">
-                Change from current: {(prediction - weights[weights.length - 1].weight).toFixed(1)} lbs
+                Change from current: {(prediction - weights[weights.length - 1].weight).toFixed(1)} {currentUnit}
               </p>
             )}
           </div>
