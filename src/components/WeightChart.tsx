@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
@@ -51,6 +52,85 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     handleChartClick,
   } = useWeightChart(onDeleteWeight, onEditWeight);
 
+  // Move all useEffect hooks to the top, before any conditional returns
+  const checkScrollButtons = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
+    }
+  };
+
+  const scrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+      setTimeout(checkScrollButtons, 300);
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+      setTimeout(checkScrollButtons, 300);
+    }
+  };
+
+  // Process chart data only if weights exist
+  const chartData = weights?.length > 0 ? weights.map((entry, index) => {
+    try {
+      const displayWeight = convertWeight(entry.weight, entry.unit, currentUnit);
+      const trend = weights.length > 1 ? calculateTrend(weights) : null;
+      const trendValue = trend ? (trend.slope * index + trend.intercept) : displayWeight;
+      
+      return {
+        ...entry,
+        displayWeight: Number(displayWeight.toFixed(2)),
+        index,
+        formattedDate: format(parseISO(entry.date), 'MMM dd'),
+        trend: Number(trendValue.toFixed(2))
+      };
+    } catch (error) {
+      console.error('Error processing weight entry:', entry, error);
+      return null;
+    }
+  }).filter(Boolean) : [];
+
+  // Process prediction data
+  const predictionData = savedPredictions?.length > 0 ? savedPredictions.map(prediction => {
+    try {
+      const displayWeight = convertWeight(prediction.predictedWeight, prediction.unit, currentUnit);
+      return {
+        id: prediction.id,
+        weight: prediction.predictedWeight,
+        displayWeight: Number(displayWeight.toFixed(2)),
+        date: prediction.targetDate,
+        formattedDate: format(parseISO(prediction.targetDate), 'MMM dd'),
+        isPrediction: true,
+        predictionName: prediction.name
+      };
+    } catch (error) {
+      console.error('Error processing prediction:', prediction, error);
+      return null;
+    }
+  }).filter(Boolean) : [];
+
+  // Combine and sort data
+  const combinedData = [...chartData, ...predictionData].sort((a, b) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  // This useEffect must be called on every render, regardless of data state
+  useEffect(() => {
+    if (combinedData.length > 0) {
+      checkScrollButtons();
+      const container = scrollContainerRef.current;
+      if (container) {
+        container.addEventListener('scroll', checkScrollButtons);
+        return () => container.removeEventListener('scroll', checkScrollButtons);
+      }
+    }
+  }, [combinedData]);
+
   // Debug logging
   console.log('WeightChart render - weights:', weights?.length || 0, 'predictions:', savedPredictions?.length || 0);
 
@@ -80,53 +160,8 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     console.error('Error calculating trend:', error);
   }
 
-  // Process chart data with better error handling
-  const chartData = weights.map((entry, index) => {
-    try {
-      const displayWeight = convertWeight(entry.weight, entry.unit, currentUnit);
-      const trendValue = trend ? (trend.slope * index + trend.intercept) : displayWeight;
-      
-      return {
-        ...entry,
-        displayWeight: Number(displayWeight.toFixed(2)),
-        index,
-        formattedDate: format(parseISO(entry.date), 'MMM dd'),
-        trend: Number(trendValue.toFixed(2))
-      };
-    } catch (error) {
-      console.error('Error processing weight entry:', entry, error);
-      return null;
-    }
-  }).filter(Boolean);
-
   console.log('Processed chartData:', chartData.length);
-
-  // Process prediction data with better error handling
-  const predictionData = savedPredictions.map(prediction => {
-    try {
-      const displayWeight = convertWeight(prediction.predictedWeight, prediction.unit, currentUnit);
-      return {
-        id: prediction.id,
-        weight: prediction.predictedWeight,
-        displayWeight: Number(displayWeight.toFixed(2)),
-        date: prediction.targetDate,
-        formattedDate: format(parseISO(prediction.targetDate), 'MMM dd'),
-        isPrediction: true,
-        predictionName: prediction.name
-      };
-    } catch (error) {
-      console.error('Error processing prediction:', prediction, error);
-      return null;
-    }
-  }).filter(Boolean);
-
   console.log('Processed predictionData:', predictionData.length);
-
-  // Combine and sort data
-  const combinedData = [...chartData, ...predictionData].sort((a, b) => 
-    new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
-
   console.log('Combined data for chart:', combinedData.length);
 
   // Calculate weight change safely
@@ -143,37 +178,6 @@ export const WeightChart: React.FC<WeightChartProps> = ({
       console.error('Error calculating weight change:', error);
     }
   }
-
-  const checkScrollButtons = () => {
-    if (scrollContainerRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-      setCanScrollLeft(scrollLeft > 0);
-      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
-    }
-  };
-
-  const scrollLeft = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -300, behavior: 'smooth' });
-      setTimeout(checkScrollButtons, 300);
-    }
-  };
-
-  const scrollRight = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: 300, behavior: 'smooth' });
-      setTimeout(checkScrollButtons, 300);
-    }
-  };
-
-  React.useEffect(() => {
-    checkScrollButtons();
-    const container = scrollContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', checkScrollButtons);
-      return () => container.removeEventListener('scroll', checkScrollButtons);
-    }
-  }, [combinedData]);
 
   // Handle prediction deletion
   const handleDeletePrediction = (predictionId: string, event: React.MouseEvent) => {
