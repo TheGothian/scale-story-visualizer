@@ -21,7 +21,7 @@ interface WeightChartProps {
 
 export const WeightChart: React.FC<WeightChartProps> = ({ 
   weights, 
-  savedPredictions, 
+  savedPredictions = [], 
   onDeleteWeight, 
   onEditWeight 
 }) => {
@@ -50,35 +50,93 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     handleChartClick,
   } = useWeightChart(onDeleteWeight, onEditWeight);
 
+  // Debug logging
+  console.log('WeightChart render - weights:', weights?.length || 0, 'predictions:', savedPredictions?.length || 0);
+
+  // Early return for no data with better error handling
+  if (!weights || weights.length === 0) {
+    console.log('No weights data available');
+    return (
+      <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-blue-700">Weight Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-12 text-gray-500">
+            <p>No weight entries yet. Start by logging your first weight!</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Calculate trend once to avoid repeated calculations
+  const trend = weights.length > 1 ? calculateTrend(weights) : null;
+  console.log('Calculated trend:', trend);
+
+  // Process chart data with better error handling
   const chartData = weights.map((entry, index) => {
-    const displayWeight = convertWeight(entry.weight, entry.unit, currentUnit);
-    return {
-      ...entry,
-      displayWeight,
-      index,
-      formattedDate: format(parseISO(entry.date), 'MMM dd'),
-      trend: weights.length > 1 ? calculateTrend(weights).slope * index + calculateTrend(weights).intercept : displayWeight
-    };
-  });
+    try {
+      const displayWeight = convertWeight(entry.weight, entry.unit, currentUnit);
+      const trendValue = trend ? (trend.slope * index + trend.intercept) : displayWeight;
+      
+      return {
+        ...entry,
+        displayWeight: Number(displayWeight.toFixed(2)),
+        index,
+        formattedDate: format(parseISO(entry.date), 'MMM dd'),
+        trend: Number(trendValue.toFixed(2))
+      };
+    } catch (error) {
+      console.error('Error processing weight entry:', entry, error);
+      return null;
+    }
+  }).filter(Boolean);
 
-  // Add prediction points to chart data
+  console.log('Processed chartData:', chartData.length);
+
+  // Process prediction data with better error handling
   const predictionData = savedPredictions.map(prediction => {
-    const displayWeight = convertWeight(prediction.predictedWeight, prediction.unit, currentUnit);
-    return {
-      id: prediction.id,
-      weight: prediction.predictedWeight,
-      displayWeight,
-      date: prediction.targetDate,
-      formattedDate: format(parseISO(prediction.targetDate), 'MMM dd'),
-      isPrediction: true,
-      predictionName: prediction.name
-    };
-  });
+    try {
+      const displayWeight = convertWeight(prediction.predictedWeight, prediction.unit, currentUnit);
+      return {
+        id: prediction.id,
+        weight: prediction.predictedWeight,
+        displayWeight: Number(displayWeight.toFixed(2)),
+        date: prediction.targetDate,
+        formattedDate: format(parseISO(prediction.targetDate), 'MMM dd'),
+        isPrediction: true,
+        predictionName: prediction.name
+      };
+    } catch (error) {
+      console.error('Error processing prediction:', prediction, error);
+      return null;
+    }
+  }).filter(Boolean);
 
-  // Combine actual weights and predictions for the chart
+  console.log('Processed predictionData:', predictionData.length);
+
+  // Combine and sort data
   const combinedData = [...chartData, ...predictionData].sort((a, b) => 
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
+
+  console.log('Combined data for chart:', combinedData.length);
+
+  // Calculate weight change safely
+  const latestWeight = weights[weights.length - 1];
+  const previousWeight = weights[weights.length - 2];
+  
+  let weightChange = 0;
+  if (latestWeight && previousWeight) {
+    try {
+      const latestDisplay = convertWeight(latestWeight.weight, latestWeight.unit, currentUnit);
+      const previousDisplay = convertWeight(previousWeight.weight, previousWeight.unit, currentUnit);
+      weightChange = latestDisplay - previousDisplay;
+    } catch (error) {
+      console.error('Error calculating weight change:', error);
+    }
+  }
 
   const checkScrollButtons = () => {
     if (scrollContainerRef.current) {
@@ -111,19 +169,10 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     }
   }, [combinedData]);
 
-  const trend = weights.length > 1 ? calculateTrend(weights) : null;
-  const latestWeight = weights[weights.length - 1];
-  const previousWeight = weights[weights.length - 2];
-  
-  let weightChange = 0;
-  if (latestWeight && previousWeight) {
-    const latestDisplay = convertWeight(latestWeight.weight, latestWeight.unit, currentUnit);
-    const previousDisplay = convertWeight(previousWeight.weight, previousWeight.unit, currentUnit);
-    weightChange = latestDisplay - previousDisplay;
-  }
-
   const CustomDot = (props: any) => {
     const { cx, cy, payload } = props;
+    
+    if (!payload) return null;
     
     // Special styling for prediction points
     if (payload.isPrediction) {
@@ -184,6 +233,23 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     return null;
   };
 
+  // Ensure we have valid data before rendering the chart
+  if (combinedData.length === 0) {
+    console.log('No combined data available for chart');
+    return (
+      <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-blue-700">Weight Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-12 text-gray-500">
+            <p>Unable to process weight data. Please try refreshing the page.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <>
       <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -239,60 +305,54 @@ export const WeightChart: React.FC<WeightChartProps> = ({
           )}
         </CardHeader>
         <CardContent>
-          {weights.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <p>No weight entries yet. Start by logging your first weight!</p>
-            </div>
-          ) : (
-            <div 
-              ref={scrollContainerRef}
-              className="h-80 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
-              onClick={handleChartClick}
-            >
-              <div style={{ minWidth: Math.max(800, combinedData.length * 60) }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={combinedData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
-                    <XAxis 
-                      dataKey="formattedDate" 
-                      stroke="#64748b"
-                      fontSize={12}
-                    />
-                    <YAxis 
-                      stroke="#64748b"
-                      fontSize={12}
-                      domain={['dataMin - 5', 'dataMax + 5']}
-                    />
-                    
-                    <Tooltip content={<CustomTooltip />} />
-                    
-                    {/* Actual weight line */}
+          <div 
+            ref={scrollContainerRef}
+            className="h-80 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+            onClick={handleChartClick}
+          >
+            <div style={{ minWidth: Math.max(800, combinedData.length * 60) }}>
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart data={combinedData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
+                  <XAxis 
+                    dataKey="formattedDate" 
+                    stroke="#64748b"
+                    fontSize={12}
+                  />
+                  <YAxis 
+                    stroke="#64748b"
+                    fontSize={12}
+                    domain={['dataMin - 5', 'dataMax + 5']}
+                  />
+                  
+                  <Tooltip content={<CustomTooltip />} />
+                  
+                  {/* Actual weight line */}
+                  <Line
+                    type="monotone"
+                    dataKey="displayWeight"
+                    stroke="#2563eb"
+                    strokeWidth={3}
+                    dot={<CustomDot />}
+                    connectNulls={false}
+                  />
+                  
+                  {/* Trend line */}
+                  {trend && weights.length > 2 && (
                     <Line
                       type="monotone"
-                      dataKey="displayWeight"
-                      stroke="#2563eb"
-                      strokeWidth={3}
-                      dot={<CustomDot />}
-                      connectNulls={false}
+                      dataKey="trend"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      dot={false}
+                      activeDot={false}
                     />
-                    
-                    {/* Trend line */}
-                    {trend && weights.length > 2 && (
-                      <Line
-                        type="monotone"
-                        dataKey="trend"
-                        stroke="#10b981"
-                        strokeWidth={2}
-                        strokeDasharray="5 5"
-                        dot={false}
-                        activeDot={false}
-                      />
-                    )}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 
