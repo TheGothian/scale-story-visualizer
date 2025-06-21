@@ -1,18 +1,15 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { TrendingUp, TrendingDown, Minus, Trash2, Edit } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { WeightEntry } from '../types/weight';
 import { format, parseISO } from 'date-fns';
 import { calculateTrend } from '../utils/calculations';
 import { useUnit } from '../contexts/UnitContext';
+import { WeightChartDot } from './WeightChartDot';
+import { WeightEditDialog } from './WeightEditDialog';
+import { useWeightChart } from '../hooks/useWeightChart';
 
 interface WeightChartProps {
   weights: WeightEntry[];
@@ -23,13 +20,25 @@ interface WeightChartProps {
 export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeight, onEditWeight }) => {
   const { unitSystem, getWeightUnit, convertWeight } = useUnit();
   const currentUnit = unitSystem === 'metric' ? 'kg' : 'lbs';
-  const [editingEntry, setEditingEntry] = useState<WeightEntry | null>(null);
-  const [editWeight, setEditWeight] = useState('');
-  const [editNote, setEditNote] = useState('');
-  const [editDate, setEditDate] = useState('');
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [activeEntry, setActiveEntry] = useState<string | null>(null);
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  
+  const {
+    editWeight,
+    setEditWeight,
+    editNote,
+    setEditNote,
+    editDate,
+    setEditDate,
+    isEditDialogOpen,
+    setIsEditDialogOpen,
+    activeEntry,
+    isPopoverOpen,
+    handleEditClick,
+    handleDeleteClick,
+    handleSaveEdit,
+    handleDotClick,
+    handlePopoverOpenChange,
+    handleChartClick,
+  } = useWeightChart(onDeleteWeight, onEditWeight);
 
   const chartData = weights.map((entry, index) => {
     const displayWeight = convertWeight(entry.weight, entry.unit, currentUnit);
@@ -53,124 +62,22 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
     weightChange = latestDisplay - previousDisplay;
   }
 
-  const handleEditClick = (entry: WeightEntry) => {
-    console.log('Edit clicked for entry:', entry.id);
-    setEditingEntry(entry);
-    setEditWeight(convertWeight(entry.weight, entry.unit, currentUnit).toString());
-    setEditNote(entry.note || '');
-    setEditDate(entry.date);
-    setIsEditDialogOpen(true);
-    setIsPopoverOpen(false);
-    setActiveEntry(null);
-  };
-
-  const handleDeleteClick = (id: string) => {
-    console.log('Delete clicked for entry:', id);
-    onDeleteWeight(id);
-    setIsPopoverOpen(false);
-    setActiveEntry(null);
-  };
-
-  const handleSaveEdit = () => {
-    if (!editingEntry) return;
-
-    const weightInOriginalUnit = convertWeight(parseFloat(editWeight), currentUnit, editingEntry.unit);
-    
-    onEditWeight(editingEntry.id, {
-      weight: weightInOriginalUnit,
-      note: editNote.trim() || undefined,
-      date: editDate,
-    });
-
-    setIsEditDialogOpen(false);
-    setEditingEntry(null);
-  };
-
-  const handleDotClick = (data: any, event: any) => {
-    console.log('Dot clicked:', data);
-    event.stopPropagation();
-    
-    if (activeEntry === data.id && isPopoverOpen) {
-      setIsPopoverOpen(false);
-      setActiveEntry(null);
-    } else {
-      setActiveEntry(data.id);
-      setIsPopoverOpen(true);
-    }
-  };
-
   const CustomDot = (props: any) => {
     const { cx, cy, payload } = props;
     const isActive = activeEntry === payload.id;
     
     return (
-      <Popover 
-        open={isActive && isPopoverOpen} 
-        onOpenChange={(open) => {
-          if (!open) {
-            setIsPopoverOpen(false);
-            setActiveEntry(null);
-          }
-        }}
-      >
-        <PopoverTrigger asChild>
-          <circle
-            cx={cx}
-            cy={cy}
-            r={isActive ? 8 : 6}
-            fill={isActive ? "#1d4ed8" : "#2563eb"}
-            stroke="#ffffff"
-            strokeWidth={2}
-            className="cursor-pointer transition-all hover:r-8"
-            onClick={(e) => handleDotClick(payload, e)}
-            style={{ 
-              filter: isActive ? 'drop-shadow(0 4px 8px rgba(37, 99, 235, 0.4))' : 'none',
-              cursor: 'pointer'
-            }}
-          />
-        </PopoverTrigger>
-        <PopoverContent 
-          className="w-64 p-3 bg-white border shadow-lg z-50"
-          side="top"
-          align="center"
-          sideOffset={15}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <div className="space-y-2">
-            <p className="font-semibold text-sm">{format(parseISO(payload.date), 'MMM dd, yyyy')}</p>
-            <p className="text-blue-600 font-medium">{`${payload.displayWeight.toFixed(1)} ${getWeightUnit()}`}</p>
-            {payload.note && (
-              <p className="text-gray-600 text-xs bg-gray-50 p-2 rounded">{payload.note}</p>
-            )}
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 h-8 text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEditClick(payload);
-                }}
-              >
-                <Edit className="h-3 w-3 mr-1" />
-                Edit
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="flex-1 h-8 text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteClick(payload.id);
-                }}
-              >
-                <Trash2 className="h-3 w-3 mr-1" />
-                Delete
-              </Button>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
+      <WeightChartDot
+        cx={cx}
+        cy={cy}
+        payload={payload}
+        isActive={isActive}
+        isPopoverOpen={isPopoverOpen}
+        onDotClick={handleDotClick}
+        onEditClick={handleEditClick}
+        onDeleteClick={handleDeleteClick}
+        onPopoverOpenChange={handlePopoverOpenChange}
+      />
     );
   };
 
@@ -202,10 +109,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
               <p>No weight entries yet. Start by logging your first weight!</p>
             </div>
           ) : (
-            <div className="h-80" onClick={() => {
-              setIsPopoverOpen(false);
-              setActiveEntry(null);
-            }}>
+            <div className="h-80" onClick={handleChartClick}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
@@ -248,61 +152,17 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
         </CardContent>
       </Card>
 
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Weight Entry</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-weight">Weight ({getWeightUnit()})</Label>
-              <Input
-                id="edit-weight"
-                type="number"
-                step="0.1"
-                value={editWeight}
-                onChange={(e) => setEditWeight(e.target.value)}
-                placeholder={`Enter weight in ${getWeightUnit()}`}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-date">Date</Label>
-              <Input
-                id="edit-date"
-                type="date"
-                value={editDate}
-                onChange={(e) => setEditDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-note">Note (optional)</Label>
-              <Textarea
-                id="edit-note"
-                value={editNote}
-                onChange={(e) => setEditNote(e.target.value)}
-                placeholder="Add a note about this weight entry..."
-                rows={3}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setIsEditDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={handleSaveEdit}
-                disabled={!editWeight || !editDate}
-              >
-                Save Changes
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <WeightEditDialog
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        editWeight={editWeight}
+        setEditWeight={setEditWeight}
+        editNote={editNote}
+        setEditNote={setEditNote}
+        editDate={editDate}
+        setEditDate={setEditDate}
+        onSave={handleSaveEdit}
+      />
     </>
   );
 };
