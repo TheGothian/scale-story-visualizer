@@ -11,6 +11,7 @@ import { CalendarIcon, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { WeightEntry } from '../types/weight';
+import { useUnit } from '../contexts/UnitContext';
 import { toast } from '@/hooks/use-toast';
 
 interface WeightFormProps {
@@ -21,6 +22,7 @@ export const WeightForm: React.FC<WeightFormProps> = ({ onAddWeight }) => {
   const [weight, setWeight] = useState('');
   const [date, setDate] = useState<Date>(new Date());
   const [note, setNote] = useState('');
+  const { unitSystem, getWeightUnit } = useUnit();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,11 +36,13 @@ export const WeightForm: React.FC<WeightFormProps> = ({ onAddWeight }) => {
       return;
     }
 
+    const unit = unitSystem === 'metric' ? 'kg' : 'lbs';
     const entry: WeightEntry = {
       id: Date.now().toString(),
       weight: Number(weight),
       date: format(date, 'yyyy-MM-dd'),
-      note: note.trim() || undefined
+      note: note.trim() || undefined,
+      unit
     };
 
     onAddWeight(entry);
@@ -47,7 +51,7 @@ export const WeightForm: React.FC<WeightFormProps> = ({ onAddWeight }) => {
     
     toast({
       title: "Weight logged!",
-      description: `Added ${weight} lbs on ${format(date, 'MMM dd, yyyy')}`,
+      description: `Added ${weight} ${unit} on ${format(date, 'MMM dd, yyyy')}`,
     });
   };
 
@@ -62,14 +66,14 @@ export const WeightForm: React.FC<WeightFormProps> = ({ onAddWeight }) => {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="weight">Weight (lbs)</Label>
+            <Label htmlFor="weight">Weight ({getWeightUnit()})</Label>
             <Input
               id="weight"
               type="number"
               step="0.1"
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
-              placeholder="Enter your weight"
+              placeholder={`Enter your weight in ${getWeightUnit()}`}
               className="text-lg"
               required
             />

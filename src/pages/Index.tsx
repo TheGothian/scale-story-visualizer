@@ -4,10 +4,12 @@ import { WeightForm } from '../components/WeightForm';
 import { WeightChart } from '../components/WeightChart';
 import { TrendAnalysis } from '../components/TrendAnalysis';
 import { EventPredictor } from '../components/EventPredictor';
+import { UnitToggle } from '../components/UnitToggle';
+import { UnitProvider } from '../contexts/UnitContext';
 import { WeightEntry } from '../types/weight';
 import { Scale } from 'lucide-react';
 
-const Index = () => {
+const IndexContent = () => {
   const [weights, setWeights] = useState<WeightEntry[]>([]);
 
   // Load data from localStorage on component mount
@@ -52,6 +54,7 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Forms */}
           <div className="space-y-6">
+            <UnitToggle />
             <WeightForm onAddWeight={addWeight} />
             <EventPredictor weights={weights} />
           </div>
@@ -64,6 +67,14 @@ const Index = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const Index = () => {
+  return (
+    <UnitProvider>
+      <IndexContent />
+    </UnitProvider>
   );
 };
 

@@ -4,6 +4,7 @@ export interface WeightEntry {
   weight: number;
   date: string;
   note?: string;
+  unit: 'kg' | 'lbs';
 }
 
 export interface TrendData {
@@ -13,3 +14,5 @@ export interface TrendData {
   weeklyChange: number;
   monthlyChange: number;
 }
+
+export type UnitSystem = 'metric' | 'imperial';

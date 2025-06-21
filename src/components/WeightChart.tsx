@@ -7,6 +7,7 @@ import { TrendingUp, TrendingDown, Minus, Trash2 } from 'lucide-react';
 import { WeightEntry } from '../types/weight';
 import { format, parseISO } from 'date-fns';
 import { calculateTrend } from '../utils/calculations';
+import { useUnit } from '../contexts/UnitContext';
 
 interface WeightChartProps {
   weights: WeightEntry[];
@@ -14,17 +15,30 @@ interface WeightChartProps {
 }
 
 export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeight }) => {
-  const chartData = weights.map((entry, index) => ({
-    ...entry,
-    index,
-    formattedDate: format(parseISO(entry.date), 'MMM dd'),
-    trend: weights.length > 1 ? calculateTrend(weights).slope * index + calculateTrend(weights).intercept : entry.weight
-  }));
+  const { unitSystem, getWeightUnit, convertWeight } = useUnit();
+  const currentUnit = unitSystem === 'metric' ? 'kg' : 'lbs';
+
+  const chartData = weights.map((entry, index) => {
+    const displayWeight = convertWeight(entry.weight, entry.unit, currentUnit);
+    return {
+      ...entry,
+      displayWeight,
+      index,
+      formattedDate: format(parseISO(entry.date), 'MMM dd'),
+      trend: weights.length > 1 ? calculateTrend(weights).slope * index + calculateTrend(weights).intercept : displayWeight
+    };
+  });
 
   const trend = weights.length > 1 ? calculateTrend(weights) : null;
   const latestWeight = weights[weights.length - 1];
   const previousWeight = weights[weights.length - 2];
-  const weightChange = latestWeight && previousWeight ? latestWeight.weight - previousWeight.weight : 0;
+  
+  let weightChange = 0;
+  if (latestWeight && previousWeight) {
+    const latestDisplay = convertWeight(latestWeight.weight, latestWeight.unit, currentUnit);
+    const previousDisplay = convertWeight(previousWeight.weight, previousWeight.unit, currentUnit);
+    weightChange = latestDisplay - previousDisplay;
+  }
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -32,7 +46,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
       return (
         <div className="bg-white p-3 rounded-lg shadow-lg border">
           <p className="font-semibold">{format(parseISO(data.date), 'MMM dd, yyyy')}</p>
-          <p className="text-blue-600">{`Weight: ${data.weight} lbs`}</p>
+          <p className="text-blue-600">{`Weight: ${data.displayWeight.toFixed(1)} ${getWeightUnit()}`}</p>
           {data.note && <p className="text-gray-600 text-sm mt-1">{data.note}</p>}
           <Button
             variant="destructive"
@@ -64,7 +78,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
                 <Minus className="h-4 w-4 text-gray-500" />
               )}
               <span className={weightChange > 0 ? 'text-red-500' : weightChange < 0 ? 'text-green-500' : 'text-gray-500'}>
-                {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} lbs
+                {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} {getWeightUnit()}
               </span>
             </div>
           )}
@@ -95,7 +109,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
                 {/* Actual weight line */}
                 <Line
                   type="monotone"
-                  dataKey="weight"
+                  dataKey="displayWeight"
                   stroke="#2563eb"
                   strokeWidth={3}
                   dot={{ fill: '#2563eb', strokeWidth: 2, r: 6 }}

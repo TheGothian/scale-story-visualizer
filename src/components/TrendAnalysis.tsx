@@ -4,12 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, Target, Calendar } from 'lucide-react';
 import { WeightEntry } from '../types/weight';
 import { calculateTrend } from '../utils/calculations';
+import { useUnit } from '../contexts/UnitContext';
 
 interface TrendAnalysisProps {
   weights: WeightEntry[];
 }
 
 export const TrendAnalysis: React.FC<TrendAnalysisProps> = ({ weights }) => {
+  const { getWeightUnit } = useUnit();
+
   if (weights.length < 2) {
     return (
       <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -26,6 +29,7 @@ export const TrendAnalysis: React.FC<TrendAnalysisProps> = ({ weights }) => {
   const trend = calculateTrend(weights);
   const isLosingWeight = trend.slope < 0;
   const isGainingWeight = trend.slope > 0;
+  const unit = getWeightUnit();
 
   return (
     <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -48,7 +52,7 @@ export const TrendAnalysis: React.FC<TrendAnalysisProps> = ({ weights }) => {
             <div>
               <p className="text-sm text-gray-600">Weekly Change</p>
               <p className={`font-semibold ${isLosingWeight ? 'text-green-600' : isGainingWeight ? 'text-red-600' : 'text-gray-600'}`}>
-                {trend.weeklyChange > 0 ? '+' : ''}{trend.weeklyChange.toFixed(2)} lbs/week
+                {trend.weeklyChange > 0 ? '+' : ''}{trend.weeklyChange.toFixed(2)} {unit}/week
               </p>
             </div>
           </div>
@@ -61,7 +65,7 @@ export const TrendAnalysis: React.FC<TrendAnalysisProps> = ({ weights }) => {
             <div>
               <p className="text-sm text-gray-600">Monthly Change</p>
               <p className={`font-semibold ${isLosingWeight ? 'text-green-600' : isGainingWeight ? 'text-red-600' : 'text-gray-600'}`}>
-                {trend.monthlyChange > 0 ? '+' : ''}{trend.monthlyChange.toFixed(2)} lbs/month
+                {trend.monthlyChange > 0 ? '+' : ''}{trend.monthlyChange.toFixed(2)} {unit}/month
               </p>
             </div>
           </div>
