@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { WeightEntry } from '../types/weight';
 import { useUnit } from '../contexts/UnitContext';
@@ -7,7 +6,7 @@ export const useWeightChart = (
   onDeleteWeight: (id: string) => void,
   onEditWeight: (id: string, updatedEntry: Partial<WeightEntry>) => void
 ) => {
-  const { convertWeight } = useUnit();
+  const { convertWeight, unitSystem } = useUnit();
   const [editingEntry, setEditingEntry] = useState<WeightEntry | null>(null);
   const [editWeight, setEditWeight] = useState('');
   const [editNote, setEditNote] = useState('');
@@ -18,7 +17,6 @@ export const useWeightChart = (
 
   const handleEditClick = (entry: WeightEntry) => {
     console.log('Edit clicked for entry:', entry.id);
-    const { unitSystem } = useUnit();
     const currentUnit = unitSystem === 'metric' ? 'kg' : 'lbs';
     
     setEditingEntry(entry);
@@ -40,7 +38,6 @@ export const useWeightChart = (
   const handleSaveEdit = () => {
     if (!editingEntry) return;
 
-    const { unitSystem } = useUnit();
     const currentUnit = unitSystem === 'metric' ? 'kg' : 'lbs';
     const weightInOriginalUnit = convertWeight(parseFloat(editWeight), currentUnit, editingEntry.unit);
     
