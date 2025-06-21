@@ -2,12 +2,12 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, Trash2, Edit } from 'lucide-react';
 import { WeightEntry } from '../types/weight';
 import { format, parseISO } from 'date-fns';
@@ -29,6 +29,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
   const [editDate, setEditDate] = useState('');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [activeEntry, setActiveEntry] = useState<string | null>(null);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   const chartData = weights.map((entry, index) => {
     const displayWeight = convertWeight(entry.weight, entry.unit, currentUnit);
@@ -59,12 +60,14 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
     setEditNote(entry.note || '');
     setEditDate(entry.date);
     setIsEditDialogOpen(true);
+    setIsPopoverOpen(false);
     setActiveEntry(null);
   };
 
   const handleDeleteClick = (id: string) => {
     console.log('Delete clicked for entry:', id);
     onDeleteWeight(id);
+    setIsPopoverOpen(false);
     setActiveEntry(null);
   };
 
@@ -86,7 +89,14 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
   const handleDotClick = (data: any, event: any) => {
     console.log('Dot clicked:', data);
     event.stopPropagation();
-    setActiveEntry(activeEntry === data.id ? null : data.id);
+    
+    if (activeEntry === data.id && isPopoverOpen) {
+      setIsPopoverOpen(false);
+      setActiveEntry(null);
+    } else {
+      setActiveEntry(data.id);
+      setIsPopoverOpen(true);
+    }
   };
 
   const CustomDot = (props: any) => {
@@ -94,25 +104,37 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
     const isActive = activeEntry === payload.id;
     
     return (
-      <HoverCard open={isActive} onOpenChange={(open) => !open && setActiveEntry(null)}>
-        <HoverCardTrigger asChild>
+      <Popover 
+        open={isActive && isPopoverOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsPopoverOpen(false);
+            setActiveEntry(null);
+          }
+        }}
+      >
+        <PopoverTrigger asChild>
           <circle
             cx={cx}
             cy={cy}
-            r={6}
+            r={isActive ? 8 : 6}
             fill={isActive ? "#1d4ed8" : "#2563eb"}
             stroke="#ffffff"
             strokeWidth={2}
-            className="cursor-pointer hover:r-8 transition-all"
+            className="cursor-pointer transition-all hover:r-8"
             onClick={(e) => handleDotClick(payload, e)}
-            style={{ filter: isActive ? 'drop-shadow(0 4px 8px rgba(37, 99, 235, 0.3))' : 'none' }}
+            style={{ 
+              filter: isActive ? 'drop-shadow(0 4px 8px rgba(37, 99, 235, 0.4))' : 'none',
+              cursor: 'pointer'
+            }}
           />
-        </HoverCardTrigger>
-        <HoverCardContent 
-          className="w-64 p-3"
+        </PopoverTrigger>
+        <PopoverContent 
+          className="w-64 p-3 bg-white border shadow-lg z-50"
           side="top"
           align="center"
-          sideOffset={10}
+          sideOffset={15}
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <div className="space-y-2">
             <p className="font-semibold text-sm">{format(parseISO(payload.date), 'MMM dd, yyyy')}</p>
@@ -147,8 +169,8 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
               </Button>
             </div>
           </div>
-        </HoverCardContent>
-      </HoverCard>
+        </PopoverContent>
+      </Popover>
     );
   };
 
@@ -180,7 +202,10 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
               <p>No weight entries yet. Start by logging your first weight!</p>
             </div>
           ) : (
-            <div className="h-80" onClick={() => setActiveEntry(null)}>
+            <div className="h-80" onClick={() => {
+              setIsPopoverOpen(false);
+              setActiveEntry(null);
+            }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
