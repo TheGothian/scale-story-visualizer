@@ -337,7 +337,7 @@ export const BodybuildingAnalytics: React.FC<BodybuildingAnalyticsProps> = ({
             </div>
           </div>
         </CardContent>
-      </div>
+      </Card>
     </div>
   );
 };
