@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { WeightEntry } from '../types/weight';
+import { WeightEntry, SavedPrediction } from '../types/weight';
 import { format, parseISO } from 'date-fns';
 import { calculateTrend } from '../utils/calculations';
 import { useUnit } from '../contexts/UnitContext';
@@ -13,11 +13,17 @@ import { useWeightChart } from '../hooks/useWeightChart';
 
 interface WeightChartProps {
   weights: WeightEntry[];
+  savedPredictions: SavedPrediction[];
   onDeleteWeight: (id: string) => void;
   onEditWeight: (id: string, updatedEntry: Partial<WeightEntry>) => void;
 }
 
-export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeight, onEditWeight }) => {
+export const WeightChart: React.FC<WeightChartProps> = ({ 
+  weights, 
+  savedPredictions, 
+  onDeleteWeight, 
+  onEditWeight 
+}) => {
   const { unitSystem, getWeightUnit, convertWeight } = useUnit();
   const currentUnit = unitSystem === 'metric' ? 'kg' : 'lbs';
   
@@ -51,6 +57,25 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
     };
   });
 
+  // Add prediction points to chart data
+  const predictionData = savedPredictions.map(prediction => {
+    const displayWeight = convertWeight(prediction.predictedWeight, prediction.unit, currentUnit);
+    return {
+      id: prediction.id,
+      weight: prediction.predictedWeight,
+      displayWeight,
+      date: prediction.targetDate,
+      formattedDate: format(parseISO(prediction.targetDate), 'MMM dd'),
+      isPrediction: true,
+      predictionName: prediction.name
+    };
+  });
+
+  // Combine actual weights and predictions for the chart
+  const combinedData = [...chartData, ...predictionData].sort((a, b) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
   const trend = weights.length > 1 ? calculateTrend(weights) : null;
   const latestWeight = weights[weights.length - 1];
   const previousWeight = weights[weights.length - 2];
@@ -64,6 +89,22 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
 
   const CustomDot = (props: any) => {
     const { cx, cy, payload } = props;
+    
+    // Special styling for prediction points
+    if (payload.isPrediction) {
+      return (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={6}
+          fill="#f59e0b"
+          stroke="#d97706"
+          strokeWidth={2}
+          className="cursor-pointer"
+        />
+      );
+    }
+    
     const isActive = activeEntry === payload.id;
     
     return (
@@ -84,6 +125,17 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      
+      if (data.isPrediction) {
+        return (
+          <div className="bg-white p-3 border border-amber-200 rounded-lg shadow-lg">
+            <p className="font-semibold text-sm text-amber-800">{data.predictionName}</p>
+            <p className="text-amber-600 font-medium">{`${data.displayWeight.toFixed(1)} ${getWeightUnit()}`}</p>
+            <p className="text-xs text-amber-600">Predicted for {format(parseISO(data.date), 'MMM dd, yyyy')}</p>
+          </div>
+        );
+      }
+      
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-semibold text-sm">{format(parseISO(data.date), 'MMM dd, yyyy')}</p>
@@ -118,6 +170,14 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
               </div>
             )}
           </div>
+          {savedPredictions.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-gray-600 mt-2">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                <span>Predictions</span>
+              </div>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {weights.length === 0 ? (
@@ -127,7 +187,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
           ) : (
             <div className="h-80" onClick={handleChartClick}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
+                <LineChart data={combinedData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
                   <XAxis 
                     dataKey="formattedDate" 
@@ -149,6 +209,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
                     stroke="#2563eb"
                     strokeWidth={3}
                     dot={<CustomDot />}
+                    connectNulls={false}
                   />
                   
                   {/* Trend line */}

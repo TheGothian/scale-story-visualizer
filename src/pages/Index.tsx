@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { WeightForm } from '../components/WeightForm';
 import { WeightChart } from '../components/WeightChart';
@@ -5,12 +6,13 @@ import { TrendAnalysis } from '../components/TrendAnalysis';
 import { EventPredictor } from '../components/EventPredictor';
 import { UnitToggle } from '../components/UnitToggle';
 import { UnitProvider } from '../contexts/UnitContext';
-import { WeightEntry } from '../types/weight';
+import { WeightEntry, SavedPrediction } from '../types/weight';
 import { Scale } from 'lucide-react';
 import { BMICalculator } from '../components/BMICalculator';
 
 const IndexContent = () => {
   const [weights, setWeights] = useState<WeightEntry[]>([]);
+  const [savedPredictions, setSavedPredictions] = useState<SavedPrediction[]>([]);
 
   // Load data from localStorage on component mount
   useEffect(() => {
@@ -18,12 +20,22 @@ const IndexContent = () => {
     if (savedWeights) {
       setWeights(JSON.parse(savedWeights));
     }
+    
+    const savedPreds = localStorage.getItem('savedPredictions');
+    if (savedPreds) {
+      setSavedPredictions(JSON.parse(savedPreds));
+    }
   }, []);
 
   // Save data to localStorage whenever weights change
   useEffect(() => {
     localStorage.setItem('weightEntries', JSON.stringify(weights));
   }, [weights]);
+
+  // Save predictions to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('savedPredictions', JSON.stringify(savedPredictions));
+  }, [savedPredictions]);
 
   const addWeight = (entry: WeightEntry) => {
     setWeights(prev => [...prev, entry].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
@@ -41,6 +53,10 @@ const IndexContent = () => {
           : entry
       ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     );
+  };
+
+  const savePrediction = (prediction: SavedPrediction) => {
+    setSavedPredictions(prev => [...prev, prediction]);
   };
 
   return (
@@ -67,13 +83,14 @@ const IndexContent = () => {
             <UnitToggle />
             <WeightForm onAddWeight={addWeight} />
             <BMICalculator weights={weights} />
-            <EventPredictor weights={weights} />
+            <EventPredictor weights={weights} onSavePrediction={savePrediction} />
           </div>
 
           {/* Right Column - Chart and Analysis */}
           <div className="lg:col-span-2 space-y-6">
             <WeightChart 
-              weights={weights} 
+              weights={weights}
+              savedPredictions={savedPredictions}
               onDeleteWeight={deleteWeight}
               onEditWeight={editWeight}
             />

@@ -6,18 +6,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Target, TrendingUp, TrendingDown } from 'lucide-react';
+import { CalendarIcon, Target, TrendingUp, TrendingDown, Save } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { WeightEntry } from '../types/weight';
+import { WeightEntry, SavedPrediction } from '../types/weight';
 import { calculateTrend, predictWeight } from '../utils/calculations';
 import { useUnit } from '../contexts/UnitContext';
 
 interface EventPredictorProps {
   weights: WeightEntry[];
+  onSavePrediction: (prediction: SavedPrediction) => void;
 }
 
-export const EventPredictor: React.FC<EventPredictorProps> = ({ weights }) => {
+export const EventPredictor: React.FC<EventPredictorProps> = ({ weights, onSavePrediction }) => {
   const { getWeightUnit, convertWeight, unitSystem } = useUnit();
   const [eventName, setEventName] = useState('');
   const [eventDate, setEventDate] = useState<Date>();
@@ -32,6 +33,27 @@ export const EventPredictor: React.FC<EventPredictorProps> = ({ weights }) => {
     
     const predictedWeight = predictWeight(weights, daysUntilEvent);
     setPrediction(predictedWeight);
+  };
+
+  const handleSavePrediction = () => {
+    if (!eventDate || !eventName || prediction === null) return;
+
+    const currentUnit = getWeightUnit() as 'kg' | 'lbs';
+    const savedPrediction: SavedPrediction = {
+      id: Date.now().toString(),
+      name: eventName,
+      targetDate: eventDate.toISOString().split('T')[0],
+      predictedWeight: prediction,
+      unit: currentUnit,
+      createdAt: new Date().toISOString()
+    };
+
+    onSavePrediction(savedPrediction);
+    
+    // Reset form after saving
+    setEventName('');
+    setEventDate(undefined);
+    setPrediction(null);
   };
 
   const trend = weights.length > 1 ? calculateTrend(weights) : null;
@@ -114,6 +136,13 @@ export const EventPredictor: React.FC<EventPredictorProps> = ({ weights }) => {
                 Change from current: {(prediction - weights[weights.length - 1].weight).toFixed(1)} {currentUnit}
               </p>
             )}
+            <Button
+              onClick={handleSavePrediction}
+              className="w-full mt-3 bg-blue-600 hover:bg-blue-700"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Save Prediction
+            </Button>
           </div>
         )}
 

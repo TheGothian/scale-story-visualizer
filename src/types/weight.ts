@@ -15,4 +15,13 @@ export interface TrendData {
   monthlyChange: number;
 }
 
+export interface SavedPrediction {
+  id: string;
+  name: string;
+  targetDate: string;
+  predictedWeight: number;
+  unit: 'kg' | 'lbs';
+  createdAt: string;
+}
+
 export type UnitSystem = 'metric' | 'imperial';
