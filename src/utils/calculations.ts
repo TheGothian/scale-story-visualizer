@@ -123,12 +123,12 @@ const calculateMovingAverage = (data: number[], windowSize: number): number[] =>
 const calculateLongestStreak = (weights: number[]) => {
   if (weights.length < 2) return { type: 'stable' as const, count: 0, current: false };
 
-  let longestStreak = { type: 'stable' as const, count: 0, current: false };
-  let currentStreak = { type: 'stable' as const, count: 1 };
+  let longestStreak: { type: 'loss' | 'gain' | 'stable'; count: number; current: boolean } = { type: 'stable', count: 0, current: false };
+  let currentStreak: { type: 'loss' | 'gain' | 'stable'; count: number } = { type: 'stable', count: 1 };
 
   for (let i = 1; i < weights.length; i++) {
     const diff = weights[i] - weights[i - 1];
-    const changeType = diff > 0.1 ? 'gain' : diff < -0.1 ? 'loss' : 'stable';
+    const changeType: 'loss' | 'gain' | 'stable' = diff > 0.1 ? 'gain' : diff < -0.1 ? 'loss' : 'stable';
 
     if (changeType === currentStreak.type) {
       currentStreak.count++;
