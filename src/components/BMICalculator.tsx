@@ -93,7 +93,7 @@ export const BMICalculator: React.FC<BMICalculatorProps> = ({ weights }) => {
 
         {weights.length > 0 && (
           <div className="text-sm text-gray-600">
-            Current weight: {convertWeight(weights[weights.length - 1].weight, weights[weights.length - 1].unit, getWeightUnit()).toFixed(1)} {getWeightUnit()}
+            Current weight: {convertWeight(weights[weights.length - 1].weight, weights[weights.length - 1].unit, getWeightUnit() as 'kg' | 'lbs').toFixed(1)} {getWeightUnit()}
           </div>
         )}
 
