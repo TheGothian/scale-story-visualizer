@@ -28,6 +28,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
   const [editNote, setEditNote] = useState('');
   const [editDate, setEditDate] = useState('');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [activeEntry, setActiveEntry] = useState<string | null>(null);
 
   const chartData = weights.map((entry, index) => {
     const displayWeight = convertWeight(entry.weight, entry.unit, currentUnit);
@@ -52,11 +53,19 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
   }
 
   const handleEditClick = (entry: WeightEntry) => {
+    console.log('Edit clicked for entry:', entry.id);
     setEditingEntry(entry);
     setEditWeight(convertWeight(entry.weight, entry.unit, currentUnit).toString());
     setEditNote(entry.note || '');
     setEditDate(entry.date);
     setIsEditDialogOpen(true);
+    setActiveEntry(null); // Close hover card
+  };
+
+  const handleDeleteClick = (id: string) => {
+    console.log('Delete clicked for entry:', id);
+    onDeleteWeight(id);
+    setActiveEntry(null); // Close hover card
   };
 
   const handleSaveEdit = () => {
@@ -74,50 +83,71 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
     setEditingEntry(null);
   };
 
+  const handleDotClick = (data: any) => {
+    console.log('Dot clicked:', data);
+    setActiveEntry(activeEntry === data.id ? null : data.id);
+  };
+
   const CustomDot = (props: any) => {
     const { cx, cy, payload } = props;
+    const isActive = activeEntry === payload.id;
     
     return (
-      <HoverCard>
-        <HoverCardTrigger asChild>
-          <circle
-            cx={cx}
-            cy={cy}
-            r={6}
-            fill="#2563eb"
-            stroke="#2563eb"
-            strokeWidth={2}
-            className="cursor-pointer hover:r-8 transition-all"
-          />
-        </HoverCardTrigger>
-        <HoverCardContent className="w-64" side="top">
-          <div className="space-y-2">
-            <p className="font-semibold">{format(parseISO(payload.date), 'MMM dd, yyyy')}</p>
-            <p className="text-blue-600">{`Weight: ${payload.displayWeight.toFixed(1)} ${getWeightUnit()}`}</p>
-            {payload.note && <p className="text-gray-600 text-sm">{payload.note}</p>}
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={() => handleEditClick(payload)}
-              >
-                <Edit className="h-3 w-3 mr-1" />
-                Edit
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="flex-1"
-                onClick={() => onDeleteWeight(payload.id)}
-              >
-                <Trash2 className="h-3 w-3 mr-1" />
-                Delete
-              </Button>
-            </div>
-          </div>
-        </HoverCardContent>
-      </HoverCard>
+      <>
+        <circle
+          cx={cx}
+          cy={cy}
+          r={8}
+          fill={isActive ? "#1d4ed8" : "#2563eb"}
+          stroke="#2563eb"
+          strokeWidth={2}
+          className="cursor-pointer hover:fill-blue-700 transition-all"
+          onClick={() => handleDotClick(payload)}
+        />
+        {isActive && (
+          <g>
+            <foreignObject
+              x={cx + 15}
+              y={cy - 50}
+              width={180}
+              height={100}
+              className="overflow-visible"
+            >
+              <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
+                <p className="font-semibold mb-1">{format(parseISO(payload.date), 'MMM dd, yyyy')}</p>
+                <p className="text-blue-600 mb-2">{`Weight: ${payload.displayWeight.toFixed(1)} ${getWeightUnit()}`}</p>
+                {payload.note && <p className="text-gray-600 text-xs mb-2">{payload.note}</p>}
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs px-2 py-1 h-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditClick(payload);
+                    }}
+                  >
+                    <Edit className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="text-xs px-2 py-1 h-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(payload.id);
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            </foreignObject>
+          </g>
+        )}
+      </>
     );
   };
 
@@ -149,7 +179,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({ weights, onDeleteWeigh
               <p>No weight entries yet. Start by logging your first weight!</p>
             </div>
           ) : (
-            <div className="h-80">
+            <div className="h-80" onClick={() => setActiveEntry(null)}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
