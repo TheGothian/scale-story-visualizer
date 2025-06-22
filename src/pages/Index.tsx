@@ -15,7 +15,7 @@ import { BodybuildingAnalytics } from '../components/BodybuildingAnalytics';
 import { BodyFatForm } from '../components/BodyFatForm';
 import { BodyFatChart } from '../components/BodyFatChart';
 import { useAuth } from '../hooks/useAuth';
-import { useSupabaseData } from '../hooks/useSupabaseData';
+import { useAllData } from '../hooks/useAllData';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
@@ -42,7 +42,7 @@ const IndexContent = () => {
     editBodyComposition,
     addBodybuildingGoal,
     deleteBodybuildingGoal
-  } = useSupabaseData();
+  } = useAllData();
 
   const handleSignOut = async () => {
     await signOut();
