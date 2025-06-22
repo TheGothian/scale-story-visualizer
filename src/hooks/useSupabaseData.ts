@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { WeightEntry, SavedPrediction, WeightGoal } from '../types/weight';
-import { BodyComposition, BodybuildingGoal } from '../types/bodybuilding';
+import { BodyComposition, BodybuildingGoal, BodyMeasurements } from '../types/bodybuilding';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
 
@@ -131,7 +131,7 @@ export const useSupabaseData = () => {
       waterPercentage: comp.water_percentage ? Number(comp.water_percentage) : undefined,
       boneMass: comp.bone_mass ? Number(comp.bone_mass) : undefined,
       metabolicAge: comp.metabolic_age,
-      measurements: comp.measurements || {},
+      measurements: (comp.measurements as BodyMeasurements) || {},
       createdAt: comp.created_at
     }));
     
@@ -323,7 +323,7 @@ export const useSupabaseData = () => {
         water_percentage: composition.waterPercentage,
         bone_mass: composition.boneMass,
         metabolic_age: composition.metabolicAge,
-        measurements: composition.measurements
+        measurements: composition.measurements as any
       })
       .select()
       .single();
@@ -339,7 +339,7 @@ export const useSupabaseData = () => {
       waterPercentage: data.water_percentage ? Number(data.water_percentage) : undefined,
       boneMass: data.bone_mass ? Number(data.bone_mass) : undefined,
       metabolicAge: data.metabolic_age,
-      measurements: data.measurements || {},
+      measurements: (data.measurements as BodyMeasurements) || {},
       createdAt: data.created_at
     };
     
@@ -363,7 +363,7 @@ export const useSupabaseData = () => {
         date: updatedComposition.date,
         body_fat_percentage: updatedComposition.bodyFatPercentage,
         muscle_mass: updatedComposition.muscleMass,
-        measurements: updatedComposition.measurements
+        measurements: updatedComposition.measurements as any
       })
       .eq('id', id);
 
