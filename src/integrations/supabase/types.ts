@@ -9,7 +9,213 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      body_compositions: {
+        Row: {
+          body_fat_percentage: number | null
+          bone_mass: number | null
+          created_at: string
+          date: string
+          id: string
+          measurements: Json | null
+          metabolic_age: number | null
+          muscle_mass: number | null
+          updated_at: string
+          user_id: string
+          visceral_fat: number | null
+          water_percentage: number | null
+        }
+        Insert: {
+          body_fat_percentage?: number | null
+          bone_mass?: number | null
+          created_at?: string
+          date: string
+          id?: string
+          measurements?: Json | null
+          metabolic_age?: number | null
+          muscle_mass?: number | null
+          updated_at?: string
+          user_id: string
+          visceral_fat?: number | null
+          water_percentage?: number | null
+        }
+        Update: {
+          body_fat_percentage?: number | null
+          bone_mass?: number | null
+          created_at?: string
+          date?: string
+          id?: string
+          measurements?: Json | null
+          metabolic_age?: number | null
+          muscle_mass?: number | null
+          updated_at?: string
+          user_id?: string
+          visceral_fat?: number | null
+          water_percentage?: number | null
+        }
+        Relationships: []
+      }
+      bodybuilding_goals: {
+        Row: {
+          caloric_target: number | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          metrics: string[] | null
+          name: string
+          phase: string
+          protein_target: number | null
+          target_body_fat: number | null
+          target_date: string
+          target_muscle_mass: number | null
+          target_weight: number | null
+          unit: string
+          updated_at: string
+          user_id: string
+          weekly_weight_target: number | null
+        }
+        Insert: {
+          caloric_target?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          metrics?: string[] | null
+          name: string
+          phase: string
+          protein_target?: number | null
+          target_body_fat?: number | null
+          target_date: string
+          target_muscle_mass?: number | null
+          target_weight?: number | null
+          unit: string
+          updated_at?: string
+          user_id: string
+          weekly_weight_target?: number | null
+        }
+        Update: {
+          caloric_target?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          metrics?: string[] | null
+          name?: string
+          phase?: string
+          protein_target?: number | null
+          target_body_fat?: number | null
+          target_date?: string
+          target_muscle_mass?: number | null
+          target_weight?: number | null
+          unit?: string
+          updated_at?: string
+          user_id?: string
+          weekly_weight_target?: number | null
+        }
+        Relationships: []
+      }
+      saved_predictions: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          predicted_weight: number
+          target_date: string
+          unit: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          predicted_weight: number
+          target_date: string
+          unit: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          predicted_weight?: number
+          target_date?: string
+          unit?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      weight_entries: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          note: string | null
+          unit: string
+          updated_at: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          note?: string | null
+          unit: string
+          updated_at?: string
+          user_id: string
+          weight: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          note?: string | null
+          unit?: string
+          updated_at?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      weight_goals: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          target_date: string
+          target_weight: number
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          target_date: string
+          target_weight: number
+          unit: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          target_date?: string
+          target_weight?: number
+          unit?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

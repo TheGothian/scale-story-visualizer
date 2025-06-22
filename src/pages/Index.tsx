@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
+
+import React from 'react';
 import { WeightForm } from '../components/WeightForm';
 import { WeightChart } from '../components/WeightChart';
-import { TrendAnalysis } from '../components/TrendAnalysis';
 import { EventPredictor } from '../components/EventPredictor';
 import { UnitToggle } from '../components/UnitToggle';
 import { UnitProvider } from '../contexts/UnitContext';
-import { WeightEntry, SavedPrediction, WeightGoal } from '../types/weight';
-import { BodyComposition, BodybuildingGoal } from '../types/bodybuilding';
-import { Scale } from 'lucide-react';
+import { Scale, LogOut } from 'lucide-react';
 import { BMICalculator } from '../components/BMICalculator';
 import { EnhancedTrendAnalysis } from '../components/EnhancedTrendAnalysis';
 import { GoalSetter } from '../components/GoalSetter';
@@ -16,127 +14,61 @@ import { PhaseGoalSetter } from '../components/PhaseGoalSetter';
 import { BodybuildingAnalytics } from '../components/BodybuildingAnalytics';
 import { BodyFatForm } from '../components/BodyFatForm';
 import { BodyFatChart } from '../components/BodyFatChart';
-import { BodyCompositionTrends } from '../components/BodyCompositionTrends';
+import { useAuth } from '../hooks/useAuth';
+import { useSupabaseData } from '../hooks/useSupabaseData';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/hooks/use-toast';
 
 const IndexContent = () => {
-  const [weights, setWeights] = useState<WeightEntry[]>([]);
-  const [savedPredictions, setSavedPredictions] = useState<SavedPrediction[]>([]);
-  const [weightGoals, setWeightGoals] = useState<WeightGoal[]>([]);
-  const [bodyCompositions, setBodyCompositions] = useState<BodyComposition[]>([]);
-  const [bodybuildingGoals, setBodybuildingGoals] = useState<BodybuildingGoal[]>([]);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const {
+    weights,
+    savedPredictions,
+    weightGoals,
+    bodyCompositions,
+    bodybuildingGoals,
+    loading,
+    addWeight,
+    deleteWeight,
+    editWeight,
+    savePrediction,
+    deletePrediction,
+    addGoal,
+    deleteGoal,
+    saveBodyComposition,
+    deleteBodyComposition,
+    editBodyComposition,
+    addBodybuildingGoal,
+    deleteBodybuildingGoal
+  } = useSupabaseData();
 
-  // Load data from localStorage on component mount
-  useEffect(() => {
-    const savedWeights = localStorage.getItem('weightEntries');
-    if (savedWeights) {
-      setWeights(JSON.parse(savedWeights));
-    }
-    
-    const savedPreds = localStorage.getItem('savedPredictions');
-    if (savedPreds) {
-      setSavedPredictions(JSON.parse(savedPreds));
-    }
-
-    const savedGoals = localStorage.getItem('weightGoals');
-    if (savedGoals) {
-      setWeightGoals(JSON.parse(savedGoals));
-    }
-
-    const savedCompositions = localStorage.getItem('bodyCompositions');
-    if (savedCompositions) {
-      setBodyCompositions(JSON.parse(savedCompositions));
-    }
-
-    const savedBBGoals = localStorage.getItem('bodybuildingGoals');
-    if (savedBBGoals) {
-      setBodybuildingGoals(JSON.parse(savedBBGoals));
-    }
-  }, []);
-
-  // Save data to localStorage whenever data changes
-  useEffect(() => {
-    localStorage.setItem('weightEntries', JSON.stringify(weights));
-  }, [weights]);
-
-  useEffect(() => {
-    localStorage.setItem('savedPredictions', JSON.stringify(savedPredictions));
-  }, [savedPredictions]);
-
-  useEffect(() => {
-    localStorage.setItem('weightGoals', JSON.stringify(weightGoals));
-  }, [weightGoals]);
-
-  useEffect(() => {
-    localStorage.setItem('bodyCompositions', JSON.stringify(bodyCompositions));
-  }, [bodyCompositions]);
-
-  useEffect(() => {
-    localStorage.setItem('bodybuildingGoals', JSON.stringify(bodybuildingGoals));
-  }, [bodybuildingGoals]);
-
-  const addWeight = (entry: WeightEntry) => {
-    setWeights(prev => [...prev, entry].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+  const handleSignOut = async () => {
+    await signOut();
+    toast({
+      title: "Signed out",
+      description: "You have been signed out successfully.",
+    });
+    navigate('/auth');
   };
 
-  const deleteWeight = (id: string) => {
-    setWeights(prev => prev.filter(entry => entry.id !== id));
-  };
+  // Redirect to auth if not logged in
+  if (!user) {
+    navigate('/auth');
+    return null;
+  }
 
-  const editWeight = (id: string, updatedEntry: Partial<WeightEntry>) => {
-    setWeights(prev => 
-      prev.map(entry => 
-        entry.id === id 
-          ? { ...entry, ...updatedEntry }
-          : entry
-      ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <Scale className="h-12 w-12 text-blue-600 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-600">Loading your data...</p>
+        </div>
+      </div>
     );
-  };
-
-  const savePrediction = (prediction: SavedPrediction) => {
-    setSavedPredictions(prev => [...prev, prediction]);
-  };
-
-  const deletePrediction = (id: string) => {
-    setSavedPredictions(prev => prev.filter(prediction => prediction.id !== id));
-  };
-
-  const addGoal = (goal: WeightGoal) => {
-    setWeightGoals(prev => [...prev, goal]);
-  };
-
-  const deleteGoal = (id: string) => {
-    setWeightGoals(prev => prev.filter(goal => goal.id !== id));
-  };
-
-  const saveBodyComposition = (composition: BodyComposition) => {
-    setBodyCompositions(prev => [...prev, composition].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-  };
-
-  const deleteBodyComposition = (id: string) => {
-    setBodyCompositions(prev => prev.filter(comp => comp.id !== id));
-  };
-
-  const editBodyComposition = (id: string, updatedComposition: Partial<BodyComposition>) => {
-    setBodyCompositions(prev => 
-      prev.map(comp => 
-        comp.id === id 
-          ? { ...comp, ...updatedComposition }
-          : comp
-      ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    );
-  };
-
-  const addBodybuildingGoal = (goal: BodybuildingGoal) => {
-    // Deactivate other goals of the same phase
-    setBodybuildingGoals(prev => 
-      prev.map(g => g.phase === goal.phase ? { ...g, isActive: false } : g)
-    );
-    setBodybuildingGoals(prev => [...prev, goal]);
-  };
-
-  const deleteBodybuildingGoal = (id: string) => {
-    setBodybuildingGoals(prev => prev.filter(goal => goal.id !== id));
-  };
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -150,9 +82,21 @@ const IndexContent = () => {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
               Bodybuilding Tracker
             </h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSignOut}
+              className="ml-4"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
           <p className="text-gray-600 text-lg">
             Track your physique transformation and achieve your bodybuilding goals
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            Welcome back, {user.email}!
           </p>
         </div>
 
