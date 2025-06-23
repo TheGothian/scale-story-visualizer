@@ -1,16 +1,18 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
-import { TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { WeightEntry, SavedPrediction } from '../types/weight';
-import { format, parseISO } from 'date-fns';
-import { calculateTrend, calculateIIRFilter } from '../utils/calculations';
 import { useUnit } from '../contexts/UnitContext';
 import { WeightChartDot } from './WeightChartDot';
 import { WeightEditDialog } from './WeightEditDialog';
+import { WeightChartTooltip } from './WeightChartTooltip';
+import { WeightChartLegend } from './WeightChartLegend';
+import { WeightChartScrollControls } from './WeightChartScrollControls';
 import { useWeightChart } from '../hooks/useWeightChart';
+import { useWeightChartData } from '../hooks/useWeightChartData';
+import { useWeightChartScroll } from '../hooks/useWeightChartScroll';
 
 interface WeightChartProps {
   weights: WeightEntry[];
@@ -27,11 +29,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
   onEditWeight,
   onDeletePrediction 
 }) => {
-  const { unitSystem, getWeightUnit, convertWeight } = useUnit();
-  const currentUnit = unitSystem === 'metric' ? 'kg' : 'lbs';
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
+  const { getWeightUnit } = useUnit();
   
   const {
     editWeight,
@@ -52,102 +50,20 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     handleChartClick,
   } = useWeightChart(onDeleteWeight, onEditWeight);
 
-  // Move all useEffect hooks to the top, before any conditional returns
-  const checkScrollButtons = () => {
-    if (scrollContainerRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
-      setCanScrollLeft(scrollLeft > 0);
-      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
-    }
-  };
-
-  const scrollLeft = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -300, behavior: 'smooth' });
-      setTimeout(checkScrollButtons, 300);
-    }
-  };
-
-  const scrollRight = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: 300, behavior: 'smooth' });
-      setTimeout(checkScrollButtons, 300);
-    }
-  };
-
-  // Process chart data only if weights exist
-  const chartData = weights?.length > 0 ? weights.map((entry, index) => {
-    try {
-      const displayWeight = convertWeight(entry.weight, entry.unit, currentUnit);
-      const trend = weights.length > 1 ? calculateTrend(weights) : null;
-      const trendValue = trend ? (trend.slope * index + trend.intercept) : displayWeight;
-      
-      return {
-        ...entry,
-        displayWeight: Number(displayWeight.toFixed(2)),
-        index,
-        formattedDate: format(parseISO(entry.date), 'MMM dd'),
-        trend: Number(trendValue.toFixed(2))
-      };
-    } catch (error) {
-      console.error('Error processing weight entry:', entry, error);
-      return null;
-    }
-  }).filter(Boolean) : [];
-
-  // Calculate IIR filtered data
-  const iirFilteredWeights = weights?.length > 0 ? calculateIIRFilter(weights, 0.3) : [];
-  const iirChartData = chartData.map((entry, index) => {
-    if (entry && iirFilteredWeights[index] !== undefined) {
-      const displayFilteredWeight = convertWeight(iirFilteredWeights[index], entry.unit, currentUnit);
-      return {
-        ...entry,
-        iirFiltered: Number(displayFilteredWeight.toFixed(2))
-      };
-    }
-    return entry;
-  });
-
-  // Process prediction data
-  const predictionData = savedPredictions?.length > 0 ? savedPredictions.map(prediction => {
-    try {
-      const displayWeight = convertWeight(prediction.predictedWeight, prediction.unit, currentUnit);
-      return {
-        id: prediction.id,
-        weight: prediction.predictedWeight,
-        displayWeight: Number(displayWeight.toFixed(2)),
-        date: prediction.targetDate,
-        formattedDate: format(parseISO(prediction.targetDate), 'MMM dd'),
-        isPrediction: true,
-        predictionName: prediction.name
-      };
-    } catch (error) {
-      console.error('Error processing prediction:', prediction, error);
-      return null;
-    }
-  }).filter(Boolean) : [];
-
-  // Combine and sort data
-  const combinedData = [...iirChartData, ...predictionData].sort((a, b) => 
-    new Date(a.date).getTime() - new Date(b.date).getTime()
-  );
-
-  // This useEffect must be called on every render, regardless of data state
-  useEffect(() => {
-    if (combinedData.length > 0) {
-      checkScrollButtons();
-      const container = scrollContainerRef.current;
-      if (container) {
-        container.addEventListener('scroll', checkScrollButtons);
-        return () => container.removeEventListener('scroll', checkScrollButtons);
-      }
-    }
-  }, [combinedData]);
+  const { combinedData, trend, weightChange, latestWeight } = useWeightChartData(weights, savedPredictions);
+  
+  const {
+    scrollContainerRef,
+    canScrollLeft,
+    canScrollRight,
+    scrollLeft,
+    scrollRight
+  } = useWeightChartScroll(combinedData.length);
 
   // Debug logging
   console.log('WeightChart render - weights:', weights?.length || 0, 'predictions:', savedPredictions?.length || 0);
 
-  // Early return for no data with better error handling
+  // Early return for no data
   if (!weights || weights.length === 0) {
     console.log('No weights data available');
     return (
@@ -162,34 +78,6 @@ export const WeightChart: React.FC<WeightChartProps> = ({
         </CardContent>
       </Card>
     );
-  }
-
-  // Calculate trend once to avoid repeated calculations
-  let trend = null;
-  try {
-    trend = weights.length > 1 ? calculateTrend(weights) : null;
-    console.log('Calculated trend:', trend);
-  } catch (error) {
-    console.error('Error calculating trend:', error);
-  }
-
-  console.log('Processed chartData:', chartData.length);
-  console.log('Processed predictionData:', predictionData.length);
-  console.log('Combined data for chart:', combinedData.length);
-
-  // Calculate weight change safely
-  const latestWeight = weights[weights.length - 1];
-  const previousWeight = weights[weights.length - 2];
-  
-  let weightChange = 0;
-  if (latestWeight && previousWeight) {
-    try {
-      const latestDisplay = convertWeight(latestWeight.weight, latestWeight.unit, currentUnit);
-      const previousDisplay = convertWeight(previousWeight.weight, previousWeight.unit, currentUnit);
-      weightChange = latestDisplay - previousDisplay;
-    } catch (error) {
-      console.error('Error calculating weight change:', error);
-    }
   }
 
   // Handle prediction deletion
@@ -258,46 +146,6 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     );
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      
-      if (data.isPrediction) {
-        return (
-          <div className="bg-white p-3 border border-amber-200 rounded-lg shadow-lg">
-            <div className="flex items-center justify-between mb-1">
-              <p className="font-semibold text-sm text-amber-800">{data.predictionName}</p>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-4 w-4 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                onClick={(e) => handleDeletePrediction(data.id, e)}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </div>
-            <p className="text-amber-600 font-medium">{`${data.displayWeight.toFixed(1)} ${getWeightUnit()}`}</p>
-            <p className="text-xs text-amber-600">Predicted for {format(parseISO(data.date), 'MMM dd, yyyy')}</p>
-          </div>
-        );
-      }
-      
-      return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-semibold text-sm">{format(parseISO(data.date), 'MMM dd, yyyy')}</p>
-          <p className="text-blue-600 font-medium">{`${data.displayWeight.toFixed(1)} ${getWeightUnit()}`}</p>
-          {data.iirFiltered && (
-            <p className="text-purple-600 font-medium">{`IIR Filtered: ${data.iirFiltered.toFixed(1)} ${getWeightUnit()}`}</p>
-          )}
-          {data.note && (
-            <p className="text-gray-600 text-xs mt-1 bg-gray-50 p-1 rounded">{data.note}</p>
-          )}
-        </div>
-      );
-    }
-    return null;
-  };
-
   // Ensure we have valid data before rendering the chart
   if (combinedData.length === 0) {
     console.log('No combined data available for chart');
@@ -336,52 +184,20 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                   </span>
                 </div>
               )}
-              {combinedData.length > 8 && (
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={scrollLeft}
-                    disabled={!canScrollLeft}
-                    className="h-8 w-8 p-0"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={scrollRight}
-                    disabled={!canScrollRight}
-                    className="h-8 w-8 p-0"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
+              <WeightChartScrollControls
+                dataLength={combinedData.length}
+                canScrollLeft={canScrollLeft}
+                canScrollRight={canScrollRight}
+                onScrollLeft={scrollLeft}
+                onScrollRight={scrollRight}
+              />
             </div>
           </div>
-          <div className="flex items-center gap-4 text-xs text-gray-600 mt-2">
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>Actual Weight</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-              <span>IIR Filter (α=0.3)</span>
-            </div>
-            {trend && weights.length > 2 && (
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Trend Line</span>
-              </div>
-            )}
-            {savedPredictions.length > 0 && (
-              <div className="flex items-center gap-1">
-                <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                <span>Predictions (click red × to delete)</span>
-              </div>
-            )}
-          </div>
+          <WeightChartLegend
+            hasData={weights.length > 0}
+            hasTrend={trend && weights.length > 2}
+            hasPredictions={savedPredictions.length > 0}
+          />
         </CardHeader>
         <CardContent>
           <div 
@@ -404,7 +220,9 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                     domain={['dataMin - 5', 'dataMax + 5']}
                   />
                   
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={(props) => (
+                    <WeightChartTooltip {...props} onDeletePrediction={handleDeletePrediction} />
+                  )} />
                   
                   {/* Actual weight line */}
                   <Line
