@@ -68,21 +68,34 @@ export const useWeightChartData = (weights: WeightEntry[], savedPredictions: Sav
   }, [weights, savedPredictions, currentUnit, convertWeight]);
 
   const goalLines = useMemo(() => {
-    return weightGoals?.filter(goal => goal.isActive).map(goal => {
+    console.log('Processing weight goals:', weightGoals);
+    
+    const processedGoals = weightGoals?.map(goal => {
+      console.log('Processing goal:', goal);
+      
       try {
         const targetWeight = convertWeight(goal.targetWeight, goal.unit, currentUnit);
-        return {
+        const processedGoal = {
           id: goal.id,
           name: goal.name,
           targetWeight: Number(targetWeight.toFixed(2)),
           targetDate: goal.targetDate,
+          isActive: goal.isActive,
           color: '#ef4444' // Will be overridden by color array in component
         };
+        
+        console.log('Processed goal:', processedGoal);
+        return processedGoal;
       } catch (error) {
         console.error('Error processing goal:', goal, error);
         return null;
       }
     }).filter(Boolean) || [];
+    
+    const activeGoals = processedGoals.filter(goal => goal.isActive);
+    console.log('Active goals:', activeGoals);
+    
+    return activeGoals;
   }, [weightGoals, currentUnit, convertWeight]);
 
   const weightChange = useMemo(() => {

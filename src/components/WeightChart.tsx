@@ -67,6 +67,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
 
   // Debug logging
   console.log('WeightChart render - weights:', weights?.length || 0, 'predictions:', savedPredictions?.length || 0, 'goals:', weightGoals?.length || 0);
+  console.log('Goal lines to render:', goalLines);
 
   // Early return for no data
   if (!weights || weights.length === 0) {
@@ -230,22 +231,25 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                   )} />
                   
                   {/* Goal reference lines */}
-                  {goalLines.map((goal, index) => (
-                    <ReferenceLine
-                      key={goal.id}
-                      y={goal.targetWeight}
-                      stroke={goalColors[index % goalColors.length]}
-                      strokeDasharray="8 4"
-                      strokeWidth={2}
-                      label={{
-                        value: goal.name,
-                        position: "insideTopLeft",
-                        fill: goalColors[index % goalColors.length],
-                        fontSize: 10,
-                        fontWeight: 600
-                      }}
-                    />
-                  ))}
+                  {goalLines.map((goal, index) => {
+                    console.log(`Rendering goal line: ${goal.name} at ${goal.targetWeight} ${getWeightUnit()}`);
+                    return (
+                      <ReferenceLine
+                        key={goal.id}
+                        y={goal.targetWeight}
+                        stroke={goalColors[index % goalColors.length]}
+                        strokeDasharray="8 4"
+                        strokeWidth={2}
+                        label={{
+                          value: goal.name,
+                          position: "insideTopLeft",
+                          fill: goalColors[index % goalColors.length],
+                          fontSize: 10,
+                          fontWeight: 600
+                        }}
+                      />
+                    );
+                  })}
                   
                   {/* Actual weight line */}
                   <Line
