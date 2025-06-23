@@ -239,7 +239,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                       strokeWidth={2}
                       label={{
                         value: goal.name,
-                        position: "topRight",
+                        position: "topLeft",
                         fill: goalColors[index % goalColors.length],
                         fontSize: 10,
                         fontWeight: 600
