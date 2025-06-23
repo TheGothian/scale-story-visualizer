@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { WeightForm } from '../components/WeightForm';
 import { WeightChart } from '../components/WeightChart';
@@ -130,6 +129,7 @@ const IndexContent = () => {
             <WeightChart 
               weights={weights}
               savedPredictions={savedPredictions}
+              weightGoals={weightGoals}
               onDeleteWeight={deleteWeight}
               onEditWeight={editWeight}
               onDeletePrediction={deletePrediction}

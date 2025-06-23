@@ -1,9 +1,9 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { WeightEntry, SavedPrediction } from '../types/weight';
+import { WeightEntry, SavedPrediction, WeightGoal } from '../types/weight';
 import { useUnit } from '../contexts/UnitContext';
 import { WeightChartDot } from './WeightChartDot';
 import { WeightEditDialog } from './WeightEditDialog';
@@ -17,6 +17,7 @@ import { useWeightChartScroll } from '../hooks/useWeightChartScroll';
 interface WeightChartProps {
   weights: WeightEntry[];
   savedPredictions: SavedPrediction[];
+  weightGoals: WeightGoal[];
   onDeleteWeight: (id: string) => void;
   onEditWeight: (id: string, updatedEntry: Partial<WeightEntry>) => void;
   onDeletePrediction: (id: string) => void;
@@ -25,11 +26,12 @@ interface WeightChartProps {
 export const WeightChart: React.FC<WeightChartProps> = ({ 
   weights, 
   savedPredictions = [], 
+  weightGoals = [],
   onDeleteWeight, 
   onEditWeight,
   onDeletePrediction 
 }) => {
-  const { getWeightUnit } = useUnit();
+  const { getWeightUnit, convertWeight, unitSystem } = useUnit();
   
   const {
     editWeight,
@@ -50,7 +52,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     handleChartClick,
   } = useWeightChart(onDeleteWeight, onEditWeight);
 
-  const { combinedData, trend, weightChange, latestWeight } = useWeightChartData(weights, savedPredictions);
+  const { combinedData, weightChange, latestWeight, goalLines } = useWeightChartData(weights, savedPredictions, weightGoals);
   
   const {
     scrollContainerRef,
@@ -60,8 +62,11 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     scrollRight
   } = useWeightChartScroll(combinedData.length);
 
+  // Define colors for goal lines
+  const goalColors = ['#ef4444', '#f97316', '#84cc16', '#06b6d4', '#8b5cf6', '#ec4899'];
+
   // Debug logging
-  console.log('WeightChart render - weights:', weights?.length || 0, 'predictions:', savedPredictions?.length || 0);
+  console.log('WeightChart render - weights:', weights?.length || 0, 'predictions:', savedPredictions?.length || 0, 'goals:', weightGoals?.length || 0);
 
   // Early return for no data
   if (!weights || weights.length === 0) {
@@ -195,8 +200,8 @@ export const WeightChart: React.FC<WeightChartProps> = ({
           </div>
           <WeightChartLegend
             hasData={weights.length > 0}
-            hasTrend={trend && weights.length > 2}
             hasPredictions={savedPredictions.length > 0}
+            goalLines={goalLines}
           />
         </CardHeader>
         <CardContent>
@@ -224,6 +229,24 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                     <WeightChartTooltip {...props} onDeletePrediction={handleDeletePrediction} />
                   )} />
                   
+                  {/* Goal reference lines */}
+                  {goalLines.map((goal, index) => (
+                    <ReferenceLine
+                      key={goal.id}
+                      y={goal.targetWeight}
+                      stroke={goalColors[index % goalColors.length]}
+                      strokeDasharray="8 4"
+                      strokeWidth={2}
+                      label={{
+                        value: goal.name,
+                        position: "topRight",
+                        fill: goalColors[index % goalColors.length],
+                        fontSize: 10,
+                        fontWeight: 600
+                      }}
+                    />
+                  ))}
+                  
                   {/* Actual weight line */}
                   <Line
                     type="monotone"
@@ -243,19 +266,6 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                     dot={false}
                     connectNulls={false}
                   />
-                  
-                  {/* Trend line */}
-                  {trend && weights.length > 2 && (
-                    <Line
-                      type="monotone"
-                      dataKey="trend"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={false}
-                      activeDot={false}
-                    />
-                  )}
                 </LineChart>
               </ResponsiveContainer>
             </div>

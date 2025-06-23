@@ -1,11 +1,11 @@
 
 import { useMemo } from 'react';
-import { WeightEntry, SavedPrediction } from '../types/weight';
+import { WeightEntry, SavedPrediction, WeightGoal } from '../types/weight';
 import { format, parseISO } from 'date-fns';
-import { calculateTrend, calculateIIRFilter } from '../utils/calculations';
+import { calculateIIRFilter } from '../utils/calculations';
 import { useUnit } from '../contexts/UnitContext';
 
-export const useWeightChartData = (weights: WeightEntry[], savedPredictions: SavedPrediction[]) => {
+export const useWeightChartData = (weights: WeightEntry[], savedPredictions: SavedPrediction[], weightGoals: WeightGoal[] = []) => {
   const { unitSystem, convertWeight } = useUnit();
   const currentUnit = unitSystem === 'metric' ? 'kg' : 'lbs';
 
@@ -14,15 +14,12 @@ export const useWeightChartData = (weights: WeightEntry[], savedPredictions: Sav
     const chartData = weights?.length > 0 ? weights.map((entry, index) => {
       try {
         const displayWeight = convertWeight(entry.weight, entry.unit, currentUnit);
-        const trend = weights.length > 1 ? calculateTrend(weights) : null;
-        const trendValue = trend ? (trend.slope * index + trend.intercept) : displayWeight;
         
         return {
           ...entry,
           displayWeight: Number(displayWeight.toFixed(2)),
           index,
-          formattedDate: format(parseISO(entry.date), 'MMM dd'),
-          trend: Number(trendValue.toFixed(2))
+          formattedDate: format(parseISO(entry.date), 'MMM dd')
         };
       } catch (error) {
         console.error('Error processing weight entry:', entry, error);
@@ -70,14 +67,23 @@ export const useWeightChartData = (weights: WeightEntry[], savedPredictions: Sav
     return { chartData, iirChartData, predictionData, combinedData };
   }, [weights, savedPredictions, currentUnit, convertWeight]);
 
-  const trend = useMemo(() => {
-    try {
-      return weights.length > 1 ? calculateTrend(weights) : null;
-    } catch (error) {
-      console.error('Error calculating trend:', error);
-      return null;
-    }
-  }, [weights]);
+  const goalLines = useMemo(() => {
+    return weightGoals?.filter(goal => goal.isActive).map(goal => {
+      try {
+        const targetWeight = convertWeight(goal.targetWeight, goal.unit, currentUnit);
+        return {
+          id: goal.id,
+          name: goal.name,
+          targetWeight: Number(targetWeight.toFixed(2)),
+          targetDate: goal.targetDate,
+          color: '#ef4444' // Will be overridden by color array in component
+        };
+      } catch (error) {
+        console.error('Error processing goal:', goal, error);
+        return null;
+      }
+    }).filter(Boolean) || [];
+  }, [weightGoals, currentUnit, convertWeight]);
 
   const weightChange = useMemo(() => {
     if (weights.length < 2) return 0;
@@ -97,7 +103,7 @@ export const useWeightChartData = (weights: WeightEntry[], savedPredictions: Sav
 
   return {
     ...processedData,
-    trend,
+    goalLines,
     weightChange,
     latestWeight: weights[weights.length - 1]
   };
