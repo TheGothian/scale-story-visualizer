@@ -1,6 +1,25 @@
-
 import { WeightEntry, TrendData } from '../types/weight';
 import { parseISO, differenceInDays, format } from 'date-fns';
+
+export const calculateIIRFilter = (weights: WeightEntry[], alpha: number = 0.3): number[] => {
+  if (weights.length === 0) return [];
+  
+  const sortedWeights = [...weights].sort((a, b) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+  
+  const filtered: number[] = [];
+  
+  // Initialize with first weight value
+  filtered[0] = sortedWeights[0].weight;
+  
+  // Apply IIR filter: y[n] = α * x[n] + (1 - α) * y[n-1]
+  for (let i = 1; i < sortedWeights.length; i++) {
+    filtered[i] = alpha * sortedWeights[i].weight + (1 - alpha) * filtered[i - 1];
+  }
+  
+  return filtered;
+};
 
 export const calculateTrend = (weights: WeightEntry[]): TrendData => {
   if (weights.length < 2) {

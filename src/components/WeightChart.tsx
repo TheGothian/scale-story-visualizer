@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 import { TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { WeightEntry, SavedPrediction } from '../types/weight';
 import { format, parseISO } from 'date-fns';
-import { calculateTrend } from '../utils/calculations';
+import { calculateTrend, calculateIIRFilter } from '../utils/calculations';
 import { useUnit } from '../contexts/UnitContext';
 import { WeightChartDot } from './WeightChartDot';
 import { WeightEditDialog } from './WeightEditDialog';
@@ -95,6 +95,19 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     }
   }).filter(Boolean) : [];
 
+  // Calculate IIR filtered data
+  const iirFilteredWeights = weights?.length > 0 ? calculateIIRFilter(weights, 0.3) : [];
+  const iirChartData = chartData.map((entry, index) => {
+    if (entry && iirFilteredWeights[index] !== undefined) {
+      const displayFilteredWeight = convertWeight(iirFilteredWeights[index], entry.unit, currentUnit);
+      return {
+        ...entry,
+        iirFiltered: Number(displayFilteredWeight.toFixed(2))
+      };
+    }
+    return entry;
+  });
+
   // Process prediction data
   const predictionData = savedPredictions?.length > 0 ? savedPredictions.map(prediction => {
     try {
@@ -115,7 +128,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
   }).filter(Boolean) : [];
 
   // Combine and sort data
-  const combinedData = [...chartData, ...predictionData].sort((a, b) => 
+  const combinedData = [...iirChartData, ...predictionData].sort((a, b) => 
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
@@ -273,6 +286,9 @@ export const WeightChart: React.FC<WeightChartProps> = ({
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-semibold text-sm">{format(parseISO(data.date), 'MMM dd, yyyy')}</p>
           <p className="text-blue-600 font-medium">{`${data.displayWeight.toFixed(1)} ${getWeightUnit()}`}</p>
+          {data.iirFiltered && (
+            <p className="text-purple-600 font-medium">{`IIR Filtered: ${data.iirFiltered.toFixed(1)} ${getWeightUnit()}`}</p>
+          )}
           {data.note && (
             <p className="text-gray-600 text-xs mt-1 bg-gray-50 p-1 rounded">{data.note}</p>
           )}
@@ -344,14 +360,28 @@ export const WeightChart: React.FC<WeightChartProps> = ({
               )}
             </div>
           </div>
-          {savedPredictions.length > 0 && (
-            <div className="flex items-center gap-2 text-xs text-gray-600 mt-2">
+          <div className="flex items-center gap-4 text-xs text-gray-600 mt-2">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span>Actual Weight</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+              <span>IIR Filter (α=0.3)</span>
+            </div>
+            {trend && weights.length > 2 && (
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>Trend Line</span>
+              </div>
+            )}
+            {savedPredictions.length > 0 && (
               <div className="flex items-center gap-1">
                 <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
                 <span>Predictions (click red × to delete)</span>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div 
@@ -383,6 +413,16 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                     stroke="#2563eb"
                     strokeWidth={3}
                     dot={<CustomDot />}
+                    connectNulls={false}
+                  />
+                  
+                  {/* IIR Filtered line */}
+                  <Line
+                    type="monotone"
+                    dataKey="iirFiltered"
+                    stroke="#8b5cf6"
+                    strokeWidth={2}
+                    dot={false}
                     connectNulls={false}
                   />
                   
