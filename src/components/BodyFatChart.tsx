@@ -1,11 +1,12 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, LineChart } from 'recharts';
 import { Percent } from 'lucide-react';
 import { BodyComposition } from '../types/bodybuilding';
 import { format, parseISO } from 'date-fns';
 import { useBodyFatChart } from '../hooks/useBodyFatChart';
+import { useBodyFatChartData } from '../hooks/useBodyFatChartData';
 import { BodyFatChartDot } from './BodyFatChartDot';
 import { BodyFatEditDialog } from './BodyFatEditDialog';
 import { toast } from '@/hooks/use-toast';
@@ -39,17 +40,8 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
     handleChartClick,
   } = useBodyFatChart(onDeleteComposition, onEditComposition);
 
-  const chartData = compositions
-    .filter(comp => comp.bodyFatPercentage && comp.bodyFatPercentage > 0)
-    .map(comp => ({
-      ...comp,
-      date: format(parseISO(comp.date), 'MMM dd'),
-      bodyFat: comp.bodyFatPercentage,
-      fullDate: comp.date
-    }))
-    .sort((a, b) => new Date(a.fullDate).getTime() - new Date(b.fullDate).getTime());
-
-  const hasData = chartData.length > 0;
+  const { iirChartData } = useBodyFatChartData(compositions);
+  const hasData = iirChartData.length > 0;
 
   const handleSaveWithToast = () => {
     handleSaveEdit();
@@ -82,30 +74,54 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
     <>
       <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="text-red-700 flex items-center gap-2">
-            <Percent className="h-5 w-5" />
-            Body Fat Percentage Progress
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-red-700 flex items-center gap-2">
+              <Percent className="h-5 w-5" />
+              Body Fat Percentage Progress
+            </CardTitle>
+          </div>
+          {hasData && (
+            <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-0.5 bg-red-500"></div>
+                <span>Actual</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-0.5 bg-purple-500"></div>
+                <span>Smoothed (IIR Filter)</span>
+              </div>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {hasData ? (
             <div className="h-64" onClick={handleChartClick}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
+                <LineChart data={iirChartData}>
                   <defs>
                     <linearGradient id="bodyFatGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
                       <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#64748b"
+                    fontSize={12}
+                  />
                   <YAxis 
+                    stroke="#64748b"
+                    fontSize={12}
                     domain={['dataMin - 1', 'dataMax + 1']}
                     tickFormatter={(value) => `${value}%`}
                   />
                   <Tooltip 
-                    formatter={(value) => [`${value}%`, 'Body Fat']}
+                    formatter={(value, name) => {
+                      if (name === 'bodyFat') return [`${value}%`, 'Body Fat'];
+                      if (name === 'iirFiltered') return [`${value}%`, 'Smoothed'];
+                      return [`${value}%`, name];
+                    }}
                     labelStyle={{ color: '#374151' }}
                     contentStyle={{ 
                       backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -113,17 +129,27 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
                       borderRadius: '8px'
                     }}
                   />
-                  <Area
+                  
+                  {/* Actual body fat line */}
+                  <Line
                     type="monotone"
                     dataKey="bodyFat"
                     stroke="#ef4444"
                     strokeWidth={3}
-                    fill="url(#bodyFatGradient)"
                     dot={<CustomDot />}
-                    activeDot={false}
                     connectNulls={false}
                   />
-                </AreaChart>
+                  
+                  {/* IIR Filtered line */}
+                  <Line
+                    type="monotone"
+                    dataKey="iirFiltered"
+                    stroke="#8b5cf6"
+                    strokeWidth={2}
+                    dot={false}
+                    connectNulls={false}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           ) : (
