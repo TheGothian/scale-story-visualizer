@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { BodyComposition } from '../types/bodybuilding';
 import { format, parseISO } from 'date-fns';
-import { calculateIIRFilter } from '../utils/calculations';
+import { calculateGenericIIRFilter } from '../utils/calculations';
 
 export const useBodyFatChartData = (compositions: BodyComposition[]) => {
   const processedData = useMemo(() => {
@@ -27,17 +27,15 @@ export const useBodyFatChartData = (compositions: BodyComposition[]) => {
       index
     }));
 
-    // Calculate IIR filtered data for body fat
-    const bodyFatValues = sortedCompositions.map(comp => comp.bodyFatPercentage!);
-    const iirFilteredBodyFat = calculateIIRFilter(
-      sortedCompositions.map(comp => ({ 
-        weight: comp.bodyFatPercentage!, 
-        date: comp.date, 
-        id: comp.id,
-        unit: '%'
-      })), 
-      0.3
-    );
+    // Calculate IIR filtered data for body fat using the generic filter
+    const bodyFatData = sortedCompositions.map(comp => ({ 
+      weight: comp.bodyFatPercentage!, 
+      date: comp.date, 
+      id: comp.id,
+      unit: '%'
+    }));
+    
+    const iirFilteredBodyFat = calculateGenericIIRFilter(bodyFatData, 0.3);
 
     // Combine original data with IIR filtered data
     const iirChartData = chartData.map((entry, index) => ({

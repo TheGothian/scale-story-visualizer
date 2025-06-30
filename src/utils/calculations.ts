@@ -1,5 +1,14 @@
+
 import { WeightEntry, TrendData } from '../types/weight';
 import { parseISO, differenceInDays, format } from 'date-fns';
+
+// Generic interface for IIR filter data
+interface FilterableData {
+  id: string;
+  weight: number;
+  date: string;
+  unit: string;
+}
 
 export const calculateIIRFilter = (weights: WeightEntry[], alpha: number = 0.3): number[] => {
   if (weights.length === 0) return [];
@@ -16,6 +25,27 @@ export const calculateIIRFilter = (weights: WeightEntry[], alpha: number = 0.3):
   // Apply IIR filter: y[n] = α * x[n] + (1 - α) * y[n-1]
   for (let i = 1; i < sortedWeights.length; i++) {
     filtered[i] = alpha * sortedWeights[i].weight + (1 - alpha) * filtered[i - 1];
+  }
+  
+  return filtered;
+};
+
+// Generic IIR filter that can work with any data type
+export const calculateGenericIIRFilter = (data: FilterableData[], alpha: number = 0.3): number[] => {
+  if (data.length === 0) return [];
+  
+  const sortedData = [...data].sort((a, b) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+  
+  const filtered: number[] = [];
+  
+  // Initialize with first data value
+  filtered[0] = sortedData[0].weight;
+  
+  // Apply IIR filter: y[n] = α * x[n] + (1 - α) * y[n-1]
+  for (let i = 1; i < sortedData.length; i++) {
+    filtered[i] = alpha * sortedData[i].weight + (1 - alpha) * filtered[i - 1];
   }
   
   return filtered;
