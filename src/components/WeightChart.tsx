@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { format } from 'date-fns';
 import { WeightEntry, SavedPrediction, WeightGoal } from '../types/weight';
 import { useUnit } from '../contexts/UnitContext';
 import { WeightChartDot } from './WeightChartDot';
@@ -216,9 +217,13 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                 <LineChart data={combinedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
                   <XAxis 
-                    dataKey="formattedDate" 
+                    dataKey="timestamp"
+                    type="number"
+                    scale="time"
+                    domain={['dataMin', 'dataMax']}
                     stroke="#64748b"
                     fontSize={12}
+                    tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
                   />
                   <YAxis 
                     stroke="#64748b"

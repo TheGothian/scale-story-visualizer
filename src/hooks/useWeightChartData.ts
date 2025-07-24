@@ -19,7 +19,8 @@ export const useWeightChartData = (weights: WeightEntry[], savedPredictions: Sav
           ...entry,
           displayWeight: Number(displayWeight.toFixed(2)),
           index,
-          formattedDate: format(parseISO(entry.date), 'MMM dd')
+          formattedDate: format(parseISO(entry.date), 'MMM dd'),
+          timestamp: new Date(entry.date).getTime()
         };
       } catch (error) {
         console.error('Error processing weight entry:', entry, error);
@@ -50,6 +51,7 @@ export const useWeightChartData = (weights: WeightEntry[], savedPredictions: Sav
           displayWeight: Number(displayWeight.toFixed(2)),
           date: prediction.targetDate,
           formattedDate: format(parseISO(prediction.targetDate), 'MMM dd'),
+          timestamp: new Date(prediction.targetDate).getTime(),
           isPrediction: true,
           predictionName: prediction.name
         };
