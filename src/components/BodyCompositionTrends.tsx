@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingDown, Activity, Info } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface BodyCompositionTrendsProps {
   bodyCompData: any[];
@@ -63,7 +64,13 @@ export const BodyCompositionTrends: React.FC<BodyCompositionTrendsProps> = ({
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={bodyCompData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
+                <XAxis 
+                  dataKey="timestamp"
+                  type="number"
+                  scale="time"
+                  domain={['dataMin', 'dataMax']}
+                  tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
+                />
                 <YAxis yAxisId="left" orientation="left" />
                 <YAxis yAxisId="right" orientation="right" />
                 <Tooltip />

@@ -24,10 +24,12 @@ export const BodybuildingAnalytics: React.FC<BodybuildingAnalyticsProps> = ({
   // Prepare data for body composition chart
   const bodyCompData = compositions.map(comp => ({
     date: format(parseISO(comp.date), 'MMM dd'),
+    fullDate: comp.date,
+    timestamp: new Date(comp.date).getTime(),
     bodyFat: comp.bodyFatPercentage || 0,
     muscleMass: comp.muscleMass || 0,
     weight: weights.find(w => w.date === comp.date)?.weight || 0
-  })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  })).sort((a, b) => new Date(a.fullDate).getTime() - new Date(b.fullDate).getTime());
 
   // Calculate symmetry analysis
   const calculateSymmetryAnalysis = () => {
