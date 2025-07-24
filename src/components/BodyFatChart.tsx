@@ -126,6 +126,7 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
                       if (name === 'iirFiltered') return [`${value}%`, 'Smoothed'];
                       return [`${value}%`, name];
                     }}
+                    labelFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd, yyyy')}
                     labelStyle={{ color: '#374151' }}
                     contentStyle={{ 
                       backgroundColor: 'rgba(255, 255, 255, 0.95)',
