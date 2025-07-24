@@ -106,9 +106,13 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
                   <XAxis 
-                    dataKey="date" 
+                    dataKey="timestamp"
+                    type="number"
+                    scale="time"
+                    domain={['dataMin', 'dataMax']}
                     stroke="#64748b"
                     fontSize={12}
+                    tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
                   />
                   <YAxis 
                     stroke="#64748b"

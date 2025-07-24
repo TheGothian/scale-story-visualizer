@@ -24,6 +24,7 @@ export const useBodyFatChartData = (compositions: BodyComposition[]) => {
       bodyFat: comp.bodyFatPercentage,
       date: format(parseISO(comp.date), 'MMM dd'),
       fullDate: comp.date,
+      timestamp: new Date(comp.date).getTime(),
       index
     }));
 
