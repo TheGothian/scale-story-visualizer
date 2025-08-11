@@ -170,6 +170,19 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     );
   }
 
+  const yCandidates: number[] = combinedData.reduce((acc: number[], d: any) => {
+    if (typeof d.displayWeight === 'number') acc.push(d.displayWeight);
+    if (typeof d.iirFiltered === 'number') acc.push(d.iirFiltered);
+    return acc;
+  }, []);
+  for (const g of goalLines) {
+    if (typeof g.targetWeight === 'number') yCandidates.push(g.targetWeight);
+  }
+  const yMin = Math.min(...yCandidates);
+  const yMax = Math.max(...yCandidates);
+  const yPadding = 5;
+  const yDomain: [number, number] = [Math.floor(yMin) - yPadding, Math.ceil(yMax) + yPadding];
+
   return (
     <>
       <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -207,38 +220,43 @@ export const WeightChart: React.FC<WeightChartProps> = ({
           />
         </CardHeader>
         <CardContent>
-          <div 
-            ref={scrollContainerRef}
-            className="h-80 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
-            onClick={handleChartClick}
-          >
-            <div style={{ minWidth: Math.max(800, combinedData.length * 60) }}>
+          <div className="flex items-stretch">
+            {/* Fixed Y-axis panel */}
+            <div className="h-80 w-16 flex-shrink-0">
               <ResponsiveContainer width="100%" height={320}>
-                <LineChart data={combinedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
-                  <XAxis 
-                    dataKey="timestamp"
-                    type="number"
-                    scale="time"
-                    domain={['dataMin', 'dataMax']}
-                    stroke="#64748b"
-                    fontSize={12}
-                    tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
-                  />
-                  <YAxis 
-                    stroke="#64748b"
-                    fontSize={12}
-                    domain={['dataMin - 5', 'dataMax + 5']}
-                  />
-                  
-                  <Tooltip content={(props) => (
-                    <WeightChartTooltip {...props} onDeletePrediction={handleDeletePrediction} />
-                  )} />
-                  
-                  {/* Goal reference lines */}
-                  {goalLines.map((goal, index) => {
-                    console.log(`Rendering goal line: ${goal.name} at ${goal.targetWeight} ${getWeightUnit()}`);
-                    return (
+                <LineChart data={combinedData} margin={{ top: 20, right: 0, left: 0, bottom: 5 }}>
+                  <YAxis stroke="#64748b" fontSize={12} domain={yDomain} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Scrollable chart area */}
+            <div
+              ref={scrollContainerRef}
+              className="h-80 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex-1"
+              onClick={handleChartClick}
+            >
+              <div style={{ minWidth: Math.max(800, combinedData.length * 60) }}>
+                <ResponsiveContainer width="100%" height={320}>
+                  <LineChart data={combinedData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
+                    <XAxis 
+                      dataKey="timestamp"
+                      type="number"
+                      scale="time"
+                      domain={['dataMin', 'dataMax']}
+                      stroke="#64748b"
+                      fontSize={12}
+                      tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
+                    />
+                    {/* Hidden Y-axis to lock domain with the fixed axis */}
+                    <YAxis domain={yDomain} stroke="#64748b" fontSize={12} tick={false} axisLine={false} width={0} />
+
+                    <Tooltip content={(props) => (
+                      <WeightChartTooltip {...props} onDeletePrediction={handleDeletePrediction} />
+                    )} />
+
+                    {goalLines.map((goal, index) => (
                       <ReferenceLine
                         key={goal.id}
                         y={goal.targetWeight}
@@ -253,30 +271,28 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                           fontWeight: 600
                         }}
                       />
-                    );
-                  })}
-                  
-                  {/* Actual weight line */}
-                  <Line
-                    type="monotone"
-                    dataKey="displayWeight"
-                    stroke="#2563eb"
-                    strokeWidth={3}
-                    dot={<CustomDot />}
-                    connectNulls={false}
-                  />
-                  
-                  {/* IIR Filtered line */}
-                  <Line
-                    type="monotone"
-                    dataKey="iirFiltered"
-                    stroke="#8b5cf6"
-                    strokeWidth={2}
-                    dot={false}
-                    connectNulls={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+                    ))}
+
+                    <Line
+                      type="monotone"
+                      dataKey="displayWeight"
+                      stroke="#2563eb"
+                      strokeWidth={3}
+                      dot={<CustomDot />}
+                      connectNulls={false}
+                    />
+
+                    <Line
+                      type="monotone"
+                      dataKey="iirFiltered"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      dot={false}
+                      connectNulls={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </CardContent>
