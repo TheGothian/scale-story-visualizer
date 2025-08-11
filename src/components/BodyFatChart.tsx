@@ -10,7 +10,8 @@ import { useBodyFatChartData } from '../hooks/useBodyFatChartData';
 import { BodyFatChartDot } from './BodyFatChartDot';
 import { BodyFatEditDialog } from './BodyFatEditDialog';
 import { toast } from '@/hooks/use-toast';
-
+import { WeightChartScrollControls } from './WeightChartScrollControls';
+import { useWeightChartScroll } from '../hooks/useWeightChartScroll';
 interface BodyFatChartProps {
   compositions: BodyComposition[];
   onDeleteComposition?: (id: string) => void;
@@ -43,6 +44,28 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
   const { iirChartData } = useBodyFatChartData(compositions);
   const hasData = iirChartData.length > 0;
 
+  // Scroll controls (reuse weight chart scroll hook)
+  const {
+    scrollContainerRef,
+    canScrollLeft,
+    canScrollRight,
+    scrollLeft,
+    scrollRight
+  } = useWeightChartScroll(iirChartData.length);
+
+  // Compute a stable Y domain so Y-axis stays fixed while scrolling
+  const yCandidates: number[] = iirChartData.reduce((acc: number[], d: any) => {
+    if (typeof d.bodyFat === 'number') acc.push(d.bodyFat);
+    if (typeof d.iirFiltered === 'number') acc.push(d.iirFiltered);
+    return acc;
+  }, []);
+  const yMin = yCandidates.length ? Math.min(...yCandidates) : 0;
+  const yMax = yCandidates.length ? Math.max(...yCandidates) : 50;
+  const yPadding = 1;
+  const yDomain: [number, number] = [
+    Math.max(0, Math.floor(yMin) - yPadding),
+    Math.min(100, Math.ceil(yMax) + yPadding)
+  ];
   const handleSaveWithToast = () => {
     handleSaveEdit();
     toast({
@@ -79,6 +102,13 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
               <Percent className="h-5 w-5" />
               Body Fat Percentage Progress
             </CardTitle>
+            <WeightChartScrollControls
+              dataLength={iirChartData.length}
+              canScrollLeft={canScrollLeft}
+              canScrollRight={canScrollRight}
+              onScrollLeft={scrollLeft}
+              onScrollRight={scrollRight}
+            />
           </div>
           {hasData && (
             <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
