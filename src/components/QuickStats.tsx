@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Scale, BarChart3, Target, Zap } from 'lucide-react';
 import { WeightEntry, WeightGoal } from '../types/weight';
 import { BodyComposition, BodybuildingGoal } from '../types/bodybuilding';
@@ -27,11 +28,18 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ weights, compositions, g
             <p className="text-xs text-blue-600">Weigh-ins</p>
           </div>
           
-          <div className="text-center p-3 rounded-lg bg-purple-50">
-            <BarChart3 className="h-6 w-6 text-purple-600 mx-auto mb-1" />
-            <p className="text-lg font-semibold text-purple-900">{compositions.length}</p>
-            <p className="text-xs text-purple-600">Body Scans</p>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="text-center p-3 rounded-lg bg-purple-50" aria-label="Body scans with body fat percentage">
+                <BarChart3 className="h-6 w-6 text-purple-600 mx-auto mb-1" />
+                <p className="text-lg font-semibold text-purple-900">{compositions.filter(c => c.bodyFatPercentage != null).length}</p>
+                <p className="text-xs text-purple-600">Body Fat Scans</p>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="center">
+              Counts scans that include a body fat percentage.
+            </TooltipContent>
+          </Tooltip>
           
           <div className="text-center p-3 rounded-lg bg-green-50">
             <Target className="h-6 w-6 text-green-600 mx-auto mb-1" />
