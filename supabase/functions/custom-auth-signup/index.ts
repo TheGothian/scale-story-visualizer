@@ -70,14 +70,22 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   try {
-    const { email, password, display_name } = await req.json();
+    const body = await req.json().catch((e) => {
+      console.error("signup: invalid JSON", e);
+      throw new Error("bad_json");
+    });
+    const { email, password, display_name } = body || {};
+    console.log("signup: parsed body", { hasEmail: !!email });
 
     if (!email || !password) {
+      console.warn("signup: missing fields", { email: !!email, password: !!password });
       return new Response(
         JSON.stringify({ error: "Email and password are required" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    console.log("signup: checking existing", { email });
 
     // Check if email already exists
     const { data: existing, error: findErr } = await supabase
@@ -101,7 +109,9 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log("signup: hashing password");
     const password_hash = bcrypt.hashSync(password, 10);
+    console.log("signup: inserting account");
 
     const { data: inserted, error: insertErr } = await supabase
       .from("accounts")
@@ -118,6 +128,7 @@ Deno.serve(async (req) => {
     }
 
     // Issue JWT (7 days)
+    console.log("signup: issuing jwt", { userId: inserted.id });
     const token = await signJWT({ sub: inserted.id, email: inserted.email }, CUSTOM_JWT_SECRET, 60 * 60 * 24 * 7);
 
     return new Response(
