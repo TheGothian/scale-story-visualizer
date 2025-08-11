@@ -125,67 +125,85 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
         </CardHeader>
         <CardContent>
           {hasData ? (
-            <div className="h-64" onClick={handleChartClick}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={iirChartData}>
-                  <defs>
-                    <linearGradient id="bodyFatGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
-                  <XAxis 
-                    dataKey="timestamp"
-                    type="number"
-                    scale="time"
-                    domain={['dataMin', 'dataMax']}
-                    stroke="#64748b"
-                    fontSize={12}
-                    tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
-                  />
-                  <YAxis 
-                    stroke="#64748b"
-                    fontSize={12}
-                    domain={['dataMin - 1', 'dataMax + 1']}
-                    tickFormatter={(value) => `${value}%`}
-                  />
-                  <Tooltip 
-                    formatter={(value, name) => {
-                      if (name === 'bodyFat') return [`${value}%`, 'Body Fat'];
-                      if (name === 'iirFiltered') return [`${value}%`, 'Smoothed'];
-                      return [`${value}%`, name];
-                    }}
-                    labelFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd, yyyy')}
-                    labelStyle={{ color: '#374151' }}
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  
-                  {/* Actual body fat line */}
-                  <Line
-                    type="monotone"
-                    dataKey="bodyFat"
-                    stroke="#ef4444"
-                    strokeWidth={3}
-                    dot={<CustomDot />}
-                    connectNulls={false}
-                  />
-                  
-                  {/* IIR Filtered line */}
-                  <Line
-                    type="monotone"
-                    dataKey="iirFiltered"
-                    stroke="#8b5cf6"
-                    strokeWidth={2}
-                    dot={false}
-                    connectNulls={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="flex items-stretch">
+              {/* Fixed Y-axis panel */}
+              <div className="h-80 w-16 flex-shrink-0">
+                <ResponsiveContainer width="100%" height={320}>
+                  <LineChart data={iirChartData} margin={{ top: 20, right: 0, left: 0, bottom: 5 }}>
+                    <YAxis 
+                      stroke="#64748b" 
+                      fontSize={12} 
+                      domain={yDomain}
+                      tickFormatter={(value) => `${value}%`} 
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Scrollable chart area */}
+              <div
+                ref={scrollContainerRef}
+                className="h-80 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex-1"
+                onClick={handleChartClick}
+              >
+                <div style={{ minWidth: Math.max(800, iirChartData.length * 60) }}>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <LineChart data={iirChartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+                      <defs>
+                        <linearGradient id="bodyFatGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
+                      <XAxis 
+                        dataKey="timestamp"
+                        type="number"
+                        scale="time"
+                        domain={['dataMin', 'dataMax']}
+                        stroke="#64748b"
+                        fontSize={12}
+                        tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
+                      />
+                      {/* Hidden Y-axis to lock domain with the fixed axis */}
+                      <YAxis domain={yDomain} stroke="#64748b" fontSize={12} tick={false} axisLine={false} width={0} />
+                      <Tooltip 
+                        formatter={(value, name) => {
+                          if (name === 'bodyFat') return [`${value}%`, 'Body Fat'];
+                          if (name === 'iirFiltered') return [`${value}%`, 'Smoothed'];
+                          return [`${value}%`, name];
+                        }}
+                        labelFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd, yyyy')}
+                        labelStyle={{ color: '#374151' }}
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px'
+                        }}
+                      />
+
+                      {/* Actual body fat line */}
+                      <Line
+                        type="monotone"
+                        dataKey="bodyFat"
+                        stroke="#ef4444"
+                        strokeWidth={3}
+                        dot={<CustomDot />}
+                        connectNulls={false}
+                      />
+                      {/* IIR Filtered line */}
+                      <Line
+                        type="monotone"
+                        dataKey="iirFiltered"
+                        stroke="#8b5cf6"
+                        strokeWidth={2}
+                        dot={false}
+                        connectNulls={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="h-64 flex items-center justify-center bg-red-50 rounded-lg">
