@@ -2,9 +2,9 @@
 import React from 'react';
 import { WeightEntry } from '../types/weight';
 import { BodyComposition, BodybuildingGoal, StrengthRecord } from '../types/bodybuilding';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { parseISO, differenceInDays } from 'date-fns';
 import { PhaseProgressCard } from './PhaseProgressCard';
-import { BodyCompositionTrends } from './BodyCompositionTrends';
+
 import { SymmetryAnalysis } from './SymmetryAnalysis';
 import { QuickStats } from './QuickStats';
 
@@ -22,14 +22,6 @@ export const BodybuildingAnalytics: React.FC<BodybuildingAnalyticsProps> = ({
   strengthRecords = []
 }) => {
   // Prepare data for body composition chart
-  const bodyCompData = compositions.map(comp => ({
-    date: format(parseISO(comp.date), 'MMM dd'),
-    fullDate: comp.date,
-    timestamp: new Date(comp.date).getTime(),
-    bodyFat: comp.bodyFatPercentage || 0,
-    muscleMass: comp.muscleMass || 0,
-    weight: weights.find(w => w.date === comp.date)?.weight || 0
-  })).sort((a, b) => new Date(a.fullDate).getTime() - new Date(b.fullDate).getTime());
 
   // Calculate symmetry analysis
   const calculateSymmetryAnalysis = () => {
@@ -89,25 +81,10 @@ export const BodybuildingAnalytics: React.FC<BodybuildingAnalyticsProps> = ({
   };
 
   // Calculate body composition trends
-  const calculateBodyCompTrends = () => {
-    if (compositions.length < 2) return null;
-
-    const first = compositions[0];
-    const latest = compositions[compositions.length - 1];
-    
-    const bodyFatChange = (latest.bodyFatPercentage || 0) - (first.bodyFatPercentage || 0);
-    const muscleMassChange = (latest.muscleMass || 0) - (first.muscleMass || 0);
-    
-    return {
-      bodyFatChange,
-      muscleMassChange,
-      timeSpan: differenceInDays(parseISO(latest.date), parseISO(first.date))
-    };
-  };
 
   const symmetryAnalysis = calculateSymmetryAnalysis();
   const activePhaseProgress = calculateActivePhaseProgress();
-  const bodyCompTrends = calculateBodyCompTrends();
+  
 
   return (
     <div className="space-y-6">
@@ -121,11 +98,6 @@ export const BodybuildingAnalytics: React.FC<BodybuildingAnalyticsProps> = ({
         </div>
       )}
 
-      {/* Body Composition Trends */}
-      <BodyCompositionTrends 
-        bodyCompData={bodyCompData}
-        bodyCompTrends={bodyCompTrends}
-      />
 
       {/* Symmetry Analysis */}
       <SymmetryAnalysis symmetryAnalysis={symmetryAnalysis} />

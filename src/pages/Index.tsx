@@ -8,7 +8,7 @@ import { Scale, LogOut } from 'lucide-react';
 import { BMICalculator } from '../components/BMICalculator';
 import { EnhancedTrendAnalysis } from '../components/EnhancedTrendAnalysis';
 import { GoalSetter } from '../components/GoalSetter';
-import { BodyCompositionCalculator } from '../components/BodyCompositionCalculator';
+
 import { PhaseGoalSetter } from '../components/PhaseGoalSetter';
 import { BodybuildingAnalytics } from '../components/BodybuildingAnalytics';
 import { BodyFatForm } from '../components/BodyFatForm';
@@ -105,11 +105,6 @@ const IndexContent = () => {
             <UnitToggle />
             <WeightForm onAddWeight={addWeight} />
             <BodyFatForm onSaveComposition={saveBodyComposition} />
-            <BodyCompositionCalculator 
-              weights={weights}
-              onSaveComposition={saveBodyComposition}
-              compositions={bodyCompositions}
-            />
             <PhaseGoalSetter 
               goals={bodybuildingGoals}
               onAddGoal={addBodybuildingGoal}
