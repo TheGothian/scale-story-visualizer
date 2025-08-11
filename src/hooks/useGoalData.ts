@@ -11,14 +11,22 @@ export const useGoalData = () => {
   const loadWeightGoals = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('weight_goals')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const token = localStorage.getItem('custom_auth_token');
+
+    const { data: res, error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: {
+        op: 'list',
+        entity: 'weight_goals',
+        orderBy: 'created_at',
+        direction: 'desc'
+      }
+    });
 
     if (error) throw error;
     
-    const formattedGoals: WeightGoal[] = data.map(goal => ({
+    const rows = (res as any)?.data ?? [];
+    const formattedGoals: WeightGoal[] = rows.map(goal => ({
       id: goal.id,
       name: goal.name,
       targetWeight: Number(goal.target_weight),

@@ -11,14 +11,22 @@ export const useWeightData = () => {
   const loadWeights = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('weight_entries')
-      .select('*')
-      .order('date', { ascending: true });
+    const token = localStorage.getItem('custom_auth_token');
+
+    const { data: res, error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: {
+        op: 'list',
+        entity: 'weight_entries',
+        orderBy: 'date',
+        direction: 'asc'
+      }
+    });
 
     if (error) throw error;
     
-    const formattedWeights: WeightEntry[] = data.map(entry => ({
+    const rows = (res as any)?.data ?? [];
+    const formattedWeights: WeightEntry[] = rows.map(entry => ({
       id: entry.id,
       weight: Number(entry.weight),
       date: entry.date,

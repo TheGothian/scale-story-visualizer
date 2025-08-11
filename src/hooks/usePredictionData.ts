@@ -11,14 +11,22 @@ export const usePredictionData = () => {
   const loadPredictions = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('saved_predictions')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const token = localStorage.getItem('custom_auth_token');
+
+    const { data: res, error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: {
+        op: 'list',
+        entity: 'saved_predictions',
+        orderBy: 'created_at',
+        direction: 'desc'
+      }
+    });
 
     if (error) throw error;
     
-    const formattedPredictions: SavedPrediction[] = data.map(pred => ({
+    const rows = (res as any)?.data ?? [];
+    const formattedPredictions: SavedPrediction[] = rows.map(pred => ({
       id: pred.id,
       name: pred.name,
       targetDate: pred.target_date,

@@ -11,14 +11,22 @@ export const useBodybuildingGoalData = () => {
   const loadBodybuildingGoals = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('bodybuilding_goals')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const token = localStorage.getItem('custom_auth_token');
+
+    const { data: res, error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: {
+        op: 'list',
+        entity: 'bodybuilding_goals',
+        orderBy: 'created_at',
+        direction: 'desc'
+      }
+    });
 
     if (error) throw error;
     
-    const formattedGoals: BodybuildingGoal[] = data.map(goal => ({
+    const rows = (res as any)?.data ?? [];
+    const formattedGoals: BodybuildingGoal[] = rows.map(goal => ({
       id: goal.id,
       name: goal.name,
       phase: goal.phase as any,

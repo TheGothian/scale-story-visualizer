@@ -11,14 +11,22 @@ export const useBodyCompositionData = () => {
   const loadBodyCompositions = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('body_compositions')
-      .select('*')
-      .order('date', { ascending: true });
+    const token = localStorage.getItem('custom_auth_token');
+
+    const { data: res, error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: {
+        op: 'list',
+        entity: 'body_compositions',
+        orderBy: 'date',
+        direction: 'asc'
+      }
+    });
 
     if (error) throw error;
     
-    const formattedCompositions: BodyComposition[] = data.map(comp => ({
+    const rows = (res as any)?.data ?? [];
+    const formattedCompositions: BodyComposition[] = rows.map(comp => ({
       id: comp.id,
       date: comp.date,
       bodyFatPercentage: comp.body_fat_percentage ? Number(comp.body_fat_percentage) : undefined,

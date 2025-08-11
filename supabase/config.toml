@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.custom-auth-me]
 verify_jwt = false
+
+[functions.user-data]
+verify_jwt = false
