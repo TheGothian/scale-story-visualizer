@@ -9,89 +9,69 @@ import { Scale, Mail, Lock, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { user, setAuth } = useAuth();
+useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
-  useEffect(() => {
-    // Check if user is already logged in
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate('/');
-      }
-    };
-    checkUser();
-  }, [navigate]);
-
-  const handleSignUp = async (e: React.FormEvent) => {
+const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`
-        }
+      const { data, error } = await supabase.functions.invoke('custom-auth-signup', {
+        body: { email, password },
       });
 
-      if (error) {
+      if (error || !data?.token) {
         toast({
-          title: "Sign up failed",
-          description: error.message,
-          variant: "destructive"
+          title: 'Sign up failed',
+          description: error?.message || 'Please try again.',
+          variant: 'destructive',
         });
       } else {
-        toast({
-          title: "Success!",
-          description: "Please check your email to confirm your account.",
-        });
+        setAuth(data.token, data.user);
+        toast({ title: 'Success!', description: 'Account created.' });
+        navigate('/');
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
-      });
+      toast({ title: 'Error', description: 'Unexpected error. Please try again.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSignIn = async (e: React.FormEvent) => {
+const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const { data, error } = await supabase.functions.invoke('custom-auth-login', {
+        body: { email, password },
       });
 
-      if (error) {
+      if (error || !data?.token) {
         toast({
-          title: "Sign in failed",
-          description: error.message,
-          variant: "destructive"
+          title: 'Sign in failed',
+          description: error?.message || 'Please check your credentials.',
+          variant: 'destructive',
         });
       } else {
-        toast({
-          title: "Welcome back!",
-          description: "You have been signed in successfully.",
-        });
+        setAuth(data.token, data.user);
+        toast({ title: 'Welcome back!', description: 'Signed in successfully.' });
         navigate('/');
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
-      });
+      toast({ title: 'Error', description: 'Unexpected error. Please try again.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
