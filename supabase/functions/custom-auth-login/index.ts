@@ -1,10 +1,11 @@
+
 // Supabase Edge Function: custom-auth-login
 // - Public endpoint (CORS enabled)
 // - Authenticates a user from public.accounts using bcrypt
 // - Issues a signed JWT using CUSTOM_JWT_SECRET
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as bcrypt from "https://esm.sh/bcryptjs@2.4.3";
+import bcrypt from "https://esm.sh/bcryptjs@2.4.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

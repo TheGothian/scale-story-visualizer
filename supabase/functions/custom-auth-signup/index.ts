@@ -1,3 +1,4 @@
+
 // Supabase Edge Function: custom-auth-signup
 // - Public endpoint (CORS enabled)
 // - Creates a new account in public.accounts with bcrypt password hashing
@@ -6,7 +7,7 @@
 // Logging is added for easier debugging in Supabase dashboard
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as bcrypt from "https://esm.sh/bcryptjs@2.4.3";
+import bcrypt from "https://esm.sh/bcryptjs@2.4.3";
 
 // CORS headers for browser calls
 const corsHeaders = {
