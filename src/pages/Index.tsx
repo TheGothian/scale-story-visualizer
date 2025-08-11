@@ -140,6 +140,7 @@ const IndexContent = () => {
               weights={weights}
               compositions={bodyCompositions}
               goals={bodybuildingGoals}
+              weightGoals={weightGoals}
             />
             
             <EnhancedTrendAnalysis weights={weights} />

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { WeightEntry } from '../types/weight';
+import { WeightEntry, WeightGoal } from '../types/weight';
 import { BodyComposition, BodybuildingGoal, StrengthRecord } from '../types/bodybuilding';
 import { parseISO, differenceInDays } from 'date-fns';
 import { PhaseProgressCard } from './PhaseProgressCard';
@@ -12,6 +12,7 @@ interface BodybuildingAnalyticsProps {
   weights: WeightEntry[];
   compositions: BodyComposition[];
   goals: BodybuildingGoal[];
+  weightGoals: WeightGoal[];
   strengthRecords?: StrengthRecord[];
 }
 
@@ -19,6 +20,7 @@ export const BodybuildingAnalytics: React.FC<BodybuildingAnalyticsProps> = ({
   weights,
   compositions,
   goals,
+  weightGoals,
   strengthRecords = []
 }) => {
   // Prepare data for body composition chart
@@ -107,6 +109,7 @@ export const BodybuildingAnalytics: React.FC<BodybuildingAnalyticsProps> = ({
         weights={weights}
         compositions={compositions}
         goals={goals}
+        weightGoals={weightGoals}
       />
     </div>
   );

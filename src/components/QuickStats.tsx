@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Scale, BarChart3, Target, Zap } from 'lucide-react';
-import { WeightEntry } from '../types/weight';
+import { WeightEntry, WeightGoal } from '../types/weight';
 import { BodyComposition, BodybuildingGoal } from '../types/bodybuilding';
 import { differenceInDays, parseISO } from 'date-fns';
 
@@ -10,9 +10,10 @@ interface QuickStatsProps {
   weights: WeightEntry[];
   compositions: BodyComposition[];
   goals: BodybuildingGoal[];
+  weightGoals: WeightGoal[];
 }
 
-export const QuickStats: React.FC<QuickStatsProps> = ({ weights, compositions, goals }) => {
+export const QuickStats: React.FC<QuickStatsProps> = ({ weights, compositions, goals, weightGoals }) => {
   return (
     <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
       <CardHeader>
@@ -34,7 +35,7 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ weights, compositions, g
           
           <div className="text-center p-3 rounded-lg bg-green-50">
             <Target className="h-6 w-6 text-green-600 mx-auto mb-1" />
-            <p className="text-lg font-semibold text-green-900">{goals.filter(g => g.isActive).length}</p>
+            <p className="text-lg font-semibold text-green-900">{weightGoals.filter(g => g.isActive).length}</p>
             <p className="text-xs text-green-600">Active Goals</p>
           </div>
           
