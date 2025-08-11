@@ -1,1 +1,10 @@
 project_id = "nfwthtzncrnyvwqsqncw"
+
+[functions.custom-auth-signup]
+verify_jwt = false
+
+[functions.custom-auth-login]
+verify_jwt = false
+
+[functions.custom-auth-me]
+verify_jwt = false
