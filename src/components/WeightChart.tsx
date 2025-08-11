@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine, Brush } from 'recharts';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { format } from 'date-fns';
 import { WeightEntry, SavedPrediction, WeightGoal } from '../types/weight';
@@ -249,6 +249,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                       fontSize={12}
                       tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
                     />
+                    <Brush dataKey="timestamp" height={24} stroke="#64748b" travellerWidth={10} />
                     {/* Hidden Y-axis to lock domain with the fixed axis */}
                     <YAxis domain={yDomain} stroke="#64748b" fontSize={12} tick={false} axisLine={false} width={0} />
 
