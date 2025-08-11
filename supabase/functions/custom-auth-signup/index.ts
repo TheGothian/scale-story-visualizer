@@ -6,7 +6,7 @@
 // Logging is added for easier debugging in Supabase dashboard
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { hash } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import * as bcrypt from "https://esm.sh/bcryptjs@2.4.3";
 
 // CORS headers for browser calls
 const corsHeaders = {
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const password_hash = await hash(password);
+    const password_hash = bcrypt.hashSync(password, 10);
 
     const { data: inserted, error: insertErr } = await supabase
       .from("accounts")

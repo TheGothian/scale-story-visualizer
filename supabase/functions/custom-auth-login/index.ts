@@ -4,7 +4,7 @@
 // - Issues a signed JWT using CUSTOM_JWT_SECRET
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { compare } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import * as bcrypt from "https://esm.sh/bcryptjs@2.4.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const ok = await compare(password, account.password_hash as string);
+    const ok = bcrypt.compareSync(password, account.password_hash as string);
     if (!ok) {
       return new Response(
         JSON.stringify({ error: "Invalid email or password" }),
