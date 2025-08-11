@@ -40,17 +40,24 @@ export const useWeightData = () => {
   const addWeight = async (entry: Omit<WeightEntry, 'id'>) => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('weight_entries')
-      .insert({
-        user_id: user.id,
-        weight: entry.weight,
-        date: entry.date,
-        note: entry.note,
-        unit: entry.unit
-      })
-      .select()
-      .single();
+    const token = localStorage.getItem('custom_auth_token');
+
+    const { data: res, error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: {
+        op: 'insert',
+        entity: 'weight_entries',
+        values: {
+          weight: entry.weight,
+          date: entry.date,
+          note: entry.note,
+          unit: entry.unit
+        }
+      }
+    });
+
+    if (error) throw error;
+    const data = (res as any)?.data;
 
     if (error) throw error;
     
@@ -66,24 +73,31 @@ export const useWeightData = () => {
   };
 
   const deleteWeight = async (id: string) => {
-    const { error } = await supabase
-      .from('weight_entries')
-      .delete()
-      .eq('id', id);
+    const token = localStorage.getItem('custom_auth_token');
+    const { error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: { op: 'delete', entity: 'weight_entries', id }
+    });
 
     if (error) throw error;
     setWeights(prev => prev.filter(entry => entry.id !== id));
   };
 
   const editWeight = async (id: string, updatedEntry: Partial<WeightEntry>) => {
-    const { error } = await supabase
-      .from('weight_entries')
-      .update({
-        weight: updatedEntry.weight,
-        date: updatedEntry.date,
-        note: updatedEntry.note
-      })
-      .eq('id', id);
+    const token = localStorage.getItem('custom_auth_token');
+    const { error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: {
+        op: 'update',
+        entity: 'weight_entries',
+        id,
+        updated: {
+          weight: updatedEntry.weight,
+          date: updatedEntry.date,
+          note: updatedEntry.note
+        }
+      }
+    });
 
     if (error) throw error;
     

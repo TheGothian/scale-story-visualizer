@@ -50,35 +50,32 @@ export const useBodybuildingGoalData = () => {
   const addBodybuildingGoal = async (goal: Omit<BodybuildingGoal, 'id' | 'createdAt'>) => {
     if (!user) return;
 
-    // Deactivate other goals of the same phase
-    if (goal.isActive) {
-      await supabase
-        .from('bodybuilding_goals')
-        .update({ is_active: false })
-        .eq('user_id', user.id)
-        .eq('phase', goal.phase);
-    }
+    const token = localStorage.getItem('custom_auth_token');
+    const { data: res, error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: {
+        op: 'add_bodybuilding_goal',
+        entity: 'bodybuilding_goals',
+        values: {
+          name: goal.name,
+          phase: goal.phase,
+          target_weight: goal.targetWeight,
+          target_body_fat: goal.targetBodyFat,
+          target_muscle_mass: goal.targetMuscleMass,
+          weekly_weight_target: goal.weeklyWeightTarget,
+          caloric_target: goal.caloricTarget,
+          protein_target: goal.proteinTarget,
+          metrics: goal.metrics,
+          target_date: goal.targetDate,
+          description: goal.description,
+          unit: goal.unit,
+          is_active: goal.isActive
+        }
+      }
+    });
 
-    const { data, error } = await supabase
-      .from('bodybuilding_goals')
-      .insert({
-        user_id: user.id,
-        name: goal.name,
-        phase: goal.phase,
-        target_weight: goal.targetWeight,
-        target_body_fat: goal.targetBodyFat,
-        target_muscle_mass: goal.targetMuscleMass,
-        weekly_weight_target: goal.weeklyWeightTarget,
-        caloric_target: goal.caloricTarget,
-        protein_target: goal.proteinTarget,
-        metrics: goal.metrics,
-        target_date: goal.targetDate,
-        description: goal.description,
-        unit: goal.unit,
-        is_active: goal.isActive
-      })
-      .select()
-      .single();
+    if (error) throw error;
+    const data = (res as any)?.data;
 
     if (error) throw error;
     
@@ -107,10 +104,11 @@ export const useBodybuildingGoalData = () => {
   };
 
   const deleteBodybuildingGoal = async (id: string) => {
-    const { error } = await supabase
-      .from('bodybuilding_goals')
-      .delete()
-      .eq('id', id);
+    const token = localStorage.getItem('custom_auth_token');
+    const { error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: { op: 'delete', entity: 'bodybuilding_goals', id }
+    });
 
     if (error) throw error;
     setBodybuildingGoals(prev => prev.filter(goal => goal.id !== id));

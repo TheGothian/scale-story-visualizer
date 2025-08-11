@@ -43,19 +43,26 @@ export const useGoalData = () => {
   const addGoal = async (goal: Omit<WeightGoal, 'id' | 'createdAt'>) => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('weight_goals')
-      .insert({
-        user_id: user.id,
-        name: goal.name,
-        target_weight: goal.targetWeight,
-        target_date: goal.targetDate,
-        description: goal.description,
-        unit: goal.unit,
-        is_active: goal.isActive
-      })
-      .select()
-      .single();
+    const token = localStorage.getItem('custom_auth_token');
+
+    const { data: res, error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: {
+        op: 'insert',
+        entity: 'weight_goals',
+        values: {
+          name: goal.name,
+          target_weight: goal.targetWeight,
+          target_date: goal.targetDate,
+          description: goal.description,
+          unit: goal.unit,
+          is_active: goal.isActive
+        }
+      }
+    });
+
+    if (error) throw error;
+    const data = (res as any)?.data;
 
     if (error) throw error;
     
@@ -74,10 +81,11 @@ export const useGoalData = () => {
   };
 
   const deleteGoal = async (id: string) => {
-    const { error } = await supabase
-      .from('weight_goals')
-      .delete()
-      .eq('id', id);
+    const token = localStorage.getItem('custom_auth_token');
+    const { error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: { op: 'delete', entity: 'weight_goals', id }
+    });
 
     if (error) throw error;
     setWeightGoals(prev => prev.filter(goal => goal.id !== id));

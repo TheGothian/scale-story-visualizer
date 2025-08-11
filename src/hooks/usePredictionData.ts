@@ -41,17 +41,24 @@ export const usePredictionData = () => {
   const savePrediction = async (prediction: Omit<SavedPrediction, 'id' | 'createdAt'>) => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('saved_predictions')
-      .insert({
-        user_id: user.id,
-        name: prediction.name,
-        target_date: prediction.targetDate,
-        predicted_weight: prediction.predictedWeight,
-        unit: prediction.unit
-      })
-      .select()
-      .single();
+    const token = localStorage.getItem('custom_auth_token');
+
+    const { data: res, error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: {
+        op: 'insert',
+        entity: 'saved_predictions',
+        values: {
+          name: prediction.name,
+          target_date: prediction.targetDate,
+          predicted_weight: prediction.predictedWeight,
+          unit: prediction.unit
+        }
+      }
+    });
+
+    if (error) throw error;
+    const data = (res as any)?.data;
 
     if (error) throw error;
     
@@ -68,10 +75,11 @@ export const usePredictionData = () => {
   };
 
   const deletePrediction = async (id: string) => {
-    const { error } = await supabase
-      .from('saved_predictions')
-      .delete()
-      .eq('id', id);
+    const token = localStorage.getItem('custom_auth_token');
+    const { error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: { op: 'delete', entity: 'saved_predictions', id }
+    });
 
     if (error) throw error;
     setSavedPredictions(prev => prev.filter(prediction => prediction.id !== id));

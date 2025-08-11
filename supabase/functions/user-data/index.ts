@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-    const { entity, op = "list", orderBy, direction = "asc" } = await req.json();
+    const { entity, op = "list", orderBy, direction = "asc", values, id, updated } = await req.json();
 
     const allowed = new Set([
       "weight_entries",
@@ -94,22 +94,76 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (op !== "list") {
-      return new Response(JSON.stringify({ error: "Unsupported op; only 'list' implemented" }), {
-        status: 400,
+    if (op === "list") {
+      let query = supabase.from(entity).select("*").eq("user_id", userId);
+      if (orderBy) {
+        query = query.order(orderBy as string, { ascending: direction === "asc" });
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return new Response(JSON.stringify({ data }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    let query = supabase.from(entity).select("*").eq("user_id", userId);
-    if (orderBy) {
-      query = query.order(orderBy as string, { ascending: direction === "asc" });
+    if (op === "insert") {
+      const insertValues = { ...(values || {}), user_id: userId };
+      const { data, error } = await supabase.from(entity).insert(insertValues).select().single();
+      if (error) throw error;
+      return new Response(JSON.stringify({ data }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
+    if (op === "update") {
+      if (!id) throw new Error("Missing id for update");
+      const { data, error } = await supabase
+        .from(entity)
+        .update(updated || {})
+        .eq("id", id)
+        .eq("user_id", userId)
+        .select()
+        .single();
+      if (error) throw error;
+      return new Response(JSON.stringify({ data }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    return new Response(JSON.stringify({ data }), {
+    if (op === "delete") {
+      if (!id) throw new Error("Missing id for delete");
+      const { error } = await supabase.from(entity).delete().eq("id", id).eq("user_id", userId);
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (op === "add_bodybuilding_goal") {
+      // Deactivate existing active goals in same phase, then insert new
+      const phase = values?.phase as string | undefined;
+      if (phase) {
+        const { error: deactErr } = await supabase
+          .from("bodybuilding_goals")
+          .update({ is_active: false })
+          .eq("user_id", userId)
+          .eq("phase", phase);
+        if (deactErr) throw deactErr;
+      }
+      const insertValues = { ...(values || {}), user_id: userId };
+      const { data, error } = await supabase
+        .from("bodybuilding_goals")
+        .insert(insertValues)
+        .select()
+        .single();
+      if (error) throw error;
+      return new Response(JSON.stringify({ data }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Unsupported op" }), {
+      status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

@@ -45,21 +45,28 @@ export const useBodyCompositionData = () => {
   const saveBodyComposition = async (composition: Omit<BodyComposition, 'id' | 'createdAt'>) => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('body_compositions')
-      .insert({
-        user_id: user.id,
-        date: composition.date,
-        body_fat_percentage: composition.bodyFatPercentage,
-        muscle_mass: composition.muscleMass,
-        visceral_fat: composition.visceralFat,
-        water_percentage: composition.waterPercentage,
-        bone_mass: composition.boneMass,
-        metabolic_age: composition.metabolicAge,
-        measurements: composition.measurements as any
-      })
-      .select()
-      .single();
+    const token = localStorage.getItem('custom_auth_token');
+
+    const { data: res, error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: {
+        op: 'insert',
+        entity: 'body_compositions',
+        values: {
+          date: composition.date,
+          body_fat_percentage: composition.bodyFatPercentage,
+          muscle_mass: composition.muscleMass,
+          visceral_fat: composition.visceralFat,
+          water_percentage: composition.waterPercentage,
+          bone_mass: composition.boneMass,
+          metabolic_age: composition.metabolicAge,
+          measurements: composition.measurements as any
+        }
+      }
+    });
+
+    if (error) throw error;
+    const data = (res as any)?.data;
 
     if (error) throw error;
     
@@ -80,25 +87,32 @@ export const useBodyCompositionData = () => {
   };
 
   const deleteBodyComposition = async (id: string) => {
-    const { error } = await supabase
-      .from('body_compositions')
-      .delete()
-      .eq('id', id);
+    const token = localStorage.getItem('custom_auth_token');
+    const { error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: { op: 'delete', entity: 'body_compositions', id }
+    });
 
     if (error) throw error;
     setBodyCompositions(prev => prev.filter(comp => comp.id !== id));
   };
 
   const editBodyComposition = async (id: string, updatedComposition: Partial<BodyComposition>) => {
-    const { error } = await supabase
-      .from('body_compositions')
-      .update({
-        date: updatedComposition.date,
-        body_fat_percentage: updatedComposition.bodyFatPercentage,
-        muscle_mass: updatedComposition.muscleMass,
-        measurements: updatedComposition.measurements as any
-      })
-      .eq('id', id);
+    const token = localStorage.getItem('custom_auth_token');
+    const { error } = await supabase.functions.invoke('user-data', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: {
+        op: 'update',
+        entity: 'body_compositions',
+        id,
+        updated: {
+          date: updatedComposition.date,
+          body_fat_percentage: updatedComposition.bodyFatPercentage,
+          muscle_mass: updatedComposition.muscleMass,
+          measurements: updatedComposition.measurements as any
+        }
+      }
+    });
 
     if (error) throw error;
     
