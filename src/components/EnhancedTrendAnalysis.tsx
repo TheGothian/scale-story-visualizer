@@ -5,7 +5,7 @@ import { TrendingUp, TrendingDown, Target, Calendar, Activity, Zap, BarChart3, H
 import { WeightEntry, WeightGoal } from '../types/weight';
 import { calculateTrend } from '../utils/calculations';
 import { useUnit } from '../contexts/UnitContext';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { parseISO, differenceInCalendarDays, addDays, format } from 'date-fns';
 
 interface EnhancedTrendAnalysisProps {
@@ -241,25 +241,27 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
                       {paceStatusLabel}
                     </span>
                   )}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button type="button" className="ml-1 inline-flex items-center rounded p-1 text-emerald-700/80 hover:text-emerald-800" aria-label="How this is calculated">
-                        <HelpCircle className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <div className="space-y-1">
-                        <p className="text-xs">Required = (target − current) ÷ weeks until target</p>
-                        {weeksUntilTarget != null && requiredWeeklyChange != null && currentWeightVal != null && goalWeightVal != null && Number.isFinite(weeksUntilTarget) && (
-                          <p className="text-xs">
-                            {(goalWeightVal - currentWeightVal).toFixed(2)} ÷ {weeksUntilTarget.toFixed(1)} ≈ {requiredWeeklyChange.toFixed(2)} {unit}/week
-                          </p>
-                        )}
-                        <p className="text-xs">Current trend = weekly change from your weigh-ins</p>
-                        <p className="text-xs">Ahead/behind compares magnitudes; wrong direction adds them.</p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="ml-1 inline-flex items-center rounded p-1 text-emerald-700/80 hover:text-emerald-800" aria-label="How this is calculated">
+                          <HelpCircle className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <div className="space-y-1">
+                          <p className="text-xs">Required = (target − current) ÷ weeks until target</p>
+                          {weeksUntilTarget != null && requiredWeeklyChange != null && currentWeightVal != null && goalWeightVal != null && Number.isFinite(weeksUntilTarget) && (
+                            <p className="text-xs">
+                              {(goalWeightVal - currentWeightVal).toFixed(2)} ÷ {weeksUntilTarget.toFixed(1)} ≈ {requiredWeeklyChange.toFixed(2)} {unit}/week
+                            </p>
+                          )}
+                          <p className="text-xs">Current trend = weekly change from your weigh-ins</p>
+                          <p className="text-xs">Ahead/behind compares magnitudes; wrong direction adds them.</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 {goalDirectionText && requiredStrText && currentStrText && directionShortText && (
                   <p className="mt-2 text-xs text-emerald-700">
