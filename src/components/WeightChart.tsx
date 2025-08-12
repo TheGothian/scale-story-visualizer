@@ -63,6 +63,28 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     scrollRight
   } = useWeightChartScroll(combinedData.length);
 
+  // Visibility toggles for IIR filter and goals
+  const [showIIR, setShowIIR] = React.useState(true);
+  const [visibleGoals, setVisibleGoals] = React.useState<Set<string>>(new Set(goalLines.map((g) => g.id)));
+
+  React.useEffect(() => {
+    // Initialize/refresh visible goals when goalLines change
+    setVisibleGoals((prev) => {
+      const next = new Set<string>();
+      for (const g of goalLines) next.add(g.id);
+      return next;
+    });
+  }, [goalLines]);
+
+  const toggleIIR = () => setShowIIR((v) => !v);
+  const toggleGoal = (id: string) => {
+    setVisibleGoals((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   // Define colors for goal lines
   const goalColors = ['#ef4444', '#f97316', '#84cc16', '#06b6d4', '#8b5cf6', '#ec4899'];
 
@@ -172,11 +194,11 @@ export const WeightChart: React.FC<WeightChartProps> = ({
 
   const yCandidates: number[] = combinedData.reduce((acc: number[], d: any) => {
     if (typeof d.displayWeight === 'number') acc.push(d.displayWeight);
-    if (typeof d.iirFiltered === 'number') acc.push(d.iirFiltered);
+    if (showIIR && typeof d.iirFiltered === 'number') acc.push(d.iirFiltered);
     return acc;
   }, []);
   for (const g of goalLines) {
-    if (typeof g.targetWeight === 'number') yCandidates.push(g.targetWeight);
+    if (visibleGoals.has(g.id) && typeof g.targetWeight === 'number') yCandidates.push(g.targetWeight);
   }
   const yMin = Math.min(...yCandidates);
   const yMax = Math.max(...yCandidates);
@@ -217,6 +239,10 @@ export const WeightChart: React.FC<WeightChartProps> = ({
             hasData={weights.length > 0}
             hasPredictions={savedPredictions.length > 0}
             goalLines={goalLines}
+            showIIR={showIIR}
+            onToggleIIR={toggleIIR}
+            visibleGoalIds={[...visibleGoals]}
+            onToggleGoal={toggleGoal}
           />
         </CardHeader>
         <CardContent>
@@ -256,7 +282,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                       <WeightChartTooltip {...props} onDeletePrediction={handleDeletePrediction} />
                     )} />
 
-                    {goalLines.map((goal, index) => (
+                    {goalLines.filter((g) => visibleGoals.has(g.id)).map((goal, index) => (
                       <ReferenceLine
                         key={goal.id}
                         y={goal.targetWeight}
@@ -282,14 +308,16 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                       connectNulls={false}
                     />
 
-                    <Line
-                      type="monotone"
-                      dataKey="iirFiltered"
-                      stroke="#8b5cf6"
-                      strokeWidth={2}
-                      dot={false}
-                      connectNulls={false}
-                    />
+                    {showIIR && (
+                      <Line
+                        type="monotone"
+                        dataKey="iirFiltered"
+                        stroke="#8b5cf6"
+                        strokeWidth={2}
+                        dot={false}
+                        connectNulls={false}
+                      />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
