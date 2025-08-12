@@ -118,7 +118,7 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-0.5 bg-purple-500"></div>
-                <span>Smoothed (IIR Filter)</span>
+                <span>IIR Filter (a=0.3)</span>
               </div>
             </div>
           )}
@@ -170,7 +170,7 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
                       <Tooltip 
                         formatter={(value, name) => {
                           if (name === 'bodyFat') return [`${value}%`, 'Body Fat'];
-                          if (name === 'iirFiltered') return [`${value}%`, 'Smoothed'];
+                          if (name === 'iirFiltered') return [`${value}%`, 'IIR Filter (a=0.3)'];
                           return [`${value}%`, name];
                         }}
                         labelFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd, yyyy')}
