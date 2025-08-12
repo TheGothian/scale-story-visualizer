@@ -61,7 +61,16 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
 
     if (requiredTowards != null && Number.isFinite(requiredTowards)) {
       paceDelta = actualTowards - requiredTowards;
-      paceDeltaColor = paceDelta >= 0 ? 'text-green-600' : (actualTowards <= 0 ? 'text-red-600' : 'text-orange-600');
+      const neededSign = Math.sign(deltaToGoal);
+      const aligned = neededSign === 0 ? true : Math.sign(actualWeeklyChange) === neededSign;
+      const epsilon = 1e-3;
+      if (!aligned || actualWeeklyChange === 0) {
+        paceDeltaColor = 'text-red-600';
+      } else if (Math.abs(actualWeeklyChange) + epsilon >= Math.abs(requiredWeeklyChange!)) {
+        paceDeltaColor = 'text-green-600';
+      } else {
+        paceDeltaColor = 'text-orange-600';
+      }
     }
 
     const canProject = actualTowards > 0;
@@ -169,6 +178,9 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
                 <p className="text-sm text-gray-600">Pace vs Target</p>
                 <p className={`font-semibold ${paceDeltaColor}`}>
                   {paceDelta != null && Number.isFinite(paceDelta) ? `${paceDelta >= 0 ? '+' : ''}${paceDelta.toFixed(2)} ${unit}/week` : '—'}
+                </p>
+                <p className="text-xs text-emerald-600">
+                  Current: {`${trend.weeklyChange >= 0 ? '+' : ''}${trend.weeklyChange.toFixed(2)} ${unit}/week`}
                 </p>
                 <p className="text-xs text-emerald-600">
                   Required: {requiredWeeklyChange != null && Number.isFinite(requiredWeeklyChange) ? `${requiredWeeklyChange >= 0 ? '+' : ''}${requiredWeeklyChange.toFixed(2)} ${unit}/week` : '—'}
