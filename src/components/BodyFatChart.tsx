@@ -44,6 +44,10 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
   const { iirChartData } = useBodyFatChartData(compositions);
   const hasData = iirChartData.length > 0;
 
+  // Visibility toggle for IIR filter
+  const [showIIR, setShowIIR] = React.useState(true);
+  const toggleIIR = () => setShowIIR((v) => !v);
+
   // Scroll controls (reuse weight chart scroll hook)
   const {
     scrollContainerRef,
@@ -56,7 +60,7 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
   // Compute a stable Y domain so Y-axis stays fixed while scrolling
   const yCandidates: number[] = iirChartData.reduce((acc: number[], d: any) => {
     if (typeof d.bodyFat === 'number') acc.push(d.bodyFat);
-    if (typeof d.iirFiltered === 'number') acc.push(d.iirFiltered);
+    if (showIIR && typeof d.iirFiltered === 'number') acc.push(d.iirFiltered);
     return acc;
   }, []);
   const yMin = yCandidates.length ? Math.min(...yCandidates) : 0;
@@ -100,7 +104,7 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
           <div className="flex justify-between items-center">
             <CardTitle className="text-red-700 flex items-center gap-2">
               <Percent className="h-5 w-5" />
-              Body Fat Percentage Progress
+              Body Fat Progress
             </CardTitle>
             <WeightChartScrollControls
               dataLength={iirChartData.length}
@@ -111,15 +115,20 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
             />
           </div>
           {hasData && (
-            <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-0.5 bg-red-500"></div>
+            <div className="flex items-center gap-2 text-xs text-gray-600 mt-2 flex-wrap">
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full border select-none">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                 <span>Actual</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-0.5 bg-purple-500"></div>
+              <button
+                type="button"
+                onClick={toggleIIR}
+                className={`flex items-center gap-1 px-2 py-1 rounded-full border select-none ${showIIR ? '' : 'opacity-50 line-through'}`}
+                aria-pressed={showIIR}
+              >
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
                 <span>IIR Filter (a=0.3)</span>
-              </div>
+              </button>
             </div>
           )}
         </CardHeader>
@@ -192,14 +201,16 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
                         connectNulls={false}
                       />
                       {/* IIR Filtered line */}
-                      <Line
-                        type="monotone"
-                        dataKey="iirFiltered"
-                        stroke="#8b5cf6"
-                        strokeWidth={2}
-                        dot={false}
-                        connectNulls={false}
-                      />
+                      {showIIR && (
+                        <Line
+                          type="monotone"
+                          dataKey="iirFiltered"
+                          stroke="#8b5cf6"
+                          strokeWidth={2}
+                          dot={false}
+                          connectNulls={false}
+                        />
+                      )}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
