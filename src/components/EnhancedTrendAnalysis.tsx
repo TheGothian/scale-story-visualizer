@@ -44,6 +44,7 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
   let paceDeltaColor = 'text-gray-600';
   let paceStatusLabel: string | null = null;
   let paceStatusColor = 'text-gray-600';
+  let paceNarrative: string | null = null;
   let projectionWindow: null | { minDate: Date; maxDate: Date; estDate: Date } = null;
   let weeksUntilTarget: number | null = null;
   let direction = 0;
@@ -88,6 +89,20 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
         paceStatusLabel = `Behind by ${behindBy.toFixed(2)} ${currentUnit}/week`;
         paceStatusColor = 'text-orange-600';
       }
+
+      // Build a plain-language narrative
+      const goalDirection = (requiredWeeklyChange! < 0) ? 'weight-loss' : 'weight-gain';
+      const currentStr = `${actualWeeklyChange >= 0 ? '+' : ''}${actualWeeklyChange.toFixed(2)} ${currentUnit}/week`;
+      const requiredStr = `${requiredWeeklyChange! >= 0 ? '+' : ''}${requiredWeeklyChange!.toFixed(2)} ${currentUnit}/week`;
+      const directionText = (!aligned || actualWeeklyChange === 0) ? "it's the wrong direction" : "that's the right direction";
+      const aheadOrBehind = (!aligned || Math.abs(actualWeeklyChange) + epsilon < Math.abs(requiredWeeklyChange!)) ? 'behind' : 'ahead';
+      const arithmetic = (!aligned || actualWeeklyChange === 0)
+        ? `${Math.abs(requiredWeeklyChange!).toFixed(2)} + ${Math.abs(actualWeeklyChange).toFixed(2)} ≈ ${(Math.abs(requiredWeeklyChange!) + Math.abs(actualWeeklyChange)).toFixed(2)}`
+        : (Math.abs(actualWeeklyChange) + epsilon >= Math.abs(requiredWeeklyChange!))
+          ? `${Math.abs(actualWeeklyChange).toFixed(2)} - ${Math.abs(requiredWeeklyChange!).toFixed(2)} ≈ ${diff.toFixed(2)}`
+          : `${Math.abs(requiredWeeklyChange!).toFixed(2)} - ${Math.abs(actualWeeklyChange).toFixed(2)} ≈ ${diff.toFixed(2)}`;
+
+      paceNarrative = `You set a ${goalDirection} goal (need ${requiredStr}), but your current trend is ${currentStr}, so ${directionText}. You're ${diff.toFixed(2)} ${currentUnit}/week ${aheadOrBehind} because ${arithmetic}.`;
     }
 
     const canProject = actualTowards > 0;
@@ -187,7 +202,7 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
 
           {/* Pace vs Target (slope delta) */}
           {activeGoal && (
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-gradient-to-r from-emerald-50 to-emerald-100">
+            <div className="md:col-span-2 lg:col-span-2 flex items-start gap-3 p-4 rounded-lg bg-gradient-to-r from-emerald-50 to-emerald-100">
               <div className="p-2 rounded-full bg-emerald-100">
                 <Target className="h-5 w-5 text-emerald-600" />
               </div>
@@ -202,6 +217,11 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
                 <p className="text-xs text-emerald-600">
                   Required: {requiredWeeklyChange != null && Number.isFinite(requiredWeeklyChange) ? `${requiredWeeklyChange >= 0 ? '+' : ''}${requiredWeeklyChange.toFixed(2)} ${unit}/week` : '—'}
                 </p>
+                {paceNarrative && (
+                  <p className="mt-2 text-xs text-emerald-700">
+                    {paceNarrative}
+                  </p>
+                )}
               </div>
             </div>
           )}
