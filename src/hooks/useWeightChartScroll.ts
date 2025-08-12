@@ -29,14 +29,29 @@ export const useWeightChartScroll = (dataLength: number) => {
   };
 
   useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => checkScrollButtons();
+
+    // Attach listener
+    container.addEventListener('scroll', handleScroll);
+
+    // On mount/data change: jump to the far right so latest data is visible
     if (dataLength > 0) {
+      // Defer to next frame to ensure layout/scrollWidth are correct
+      requestAnimationFrame(() => {
+        if (!container) return;
+        container.scrollLeft = container.scrollWidth - container.clientWidth;
+        checkScrollButtons();
+      });
+    } else {
       checkScrollButtons();
-      const container = scrollContainerRef.current;
-      if (container) {
-        container.addEventListener('scroll', checkScrollButtons);
-        return () => container.removeEventListener('scroll', checkScrollButtons);
-      }
     }
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
   }, [dataLength]);
 
   return {
