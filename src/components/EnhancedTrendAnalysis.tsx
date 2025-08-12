@@ -42,6 +42,8 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
   let requiredWeeklyChange: number | null = null;
   let paceDelta: number | null = null;
   let paceDeltaColor = 'text-gray-600';
+  let paceStatusLabel: string | null = null;
+  let paceStatusColor = 'text-gray-600';
   let projectionWindow: null | { minDate: Date; maxDate: Date; estDate: Date } = null;
   let weeksUntilTarget: number | null = null;
   let direction = 0;
@@ -64,12 +66,27 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
       const neededSign = Math.sign(deltaToGoal);
       const aligned = neededSign === 0 ? true : Math.sign(actualWeeklyChange) === neededSign;
       const epsilon = 1e-3;
+
       if (!aligned || actualWeeklyChange === 0) {
         paceDeltaColor = 'text-red-600';
       } else if (Math.abs(actualWeeklyChange) + epsilon >= Math.abs(requiredWeeklyChange!)) {
         paceDeltaColor = 'text-green-600';
       } else {
         paceDeltaColor = 'text-orange-600';
+      }
+
+      const diff = Math.abs(actualTowards - requiredTowards);
+      if (!aligned || actualWeeklyChange === 0) {
+        paceStatusLabel = `Wrong direction · behind by ${diff.toFixed(2)} ${currentUnit}/week`;
+        paceStatusColor = 'text-red-600';
+      } else if (Math.abs(actualWeeklyChange) + epsilon >= Math.abs(requiredWeeklyChange!)) {
+        const aheadBy = (actualTowards - requiredTowards);
+        paceStatusLabel = `Ahead by ${aheadBy.toFixed(2)} ${currentUnit}/week`;
+        paceStatusColor = 'text-green-600';
+      } else {
+        const behindBy = (requiredTowards - actualTowards);
+        paceStatusLabel = `Behind by ${behindBy.toFixed(2)} ${currentUnit}/week`;
+        paceStatusColor = 'text-orange-600';
       }
     }
 
@@ -176,8 +193,8 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
               </div>
               <div>
                 <p className="text-sm text-gray-600">Pace vs Target</p>
-                <p className={`font-semibold ${paceDeltaColor}`}>
-                  {paceDelta != null && Number.isFinite(paceDelta) ? `${paceDelta >= 0 ? '+' : ''}${paceDelta.toFixed(2)} ${unit}/week` : '—'}
+                <p className={`font-semibold ${paceStatusColor}`}>
+                  {paceStatusLabel ?? '—'}
                 </p>
                 <p className="text-xs text-emerald-600">
                   Current: {`${trend.weeklyChange >= 0 ? '+' : ''}${trend.weeklyChange.toFixed(2)} ${unit}/week`}
