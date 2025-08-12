@@ -2,16 +2,18 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, Target, Calendar, Activity, Zap, BarChart3 } from 'lucide-react';
-import { WeightEntry } from '../types/weight';
+import { WeightEntry, WeightGoal } from '../types/weight';
 import { calculateTrend } from '../utils/calculations';
 import { useUnit } from '../contexts/UnitContext';
+import { parseISO, differenceInCalendarDays, addDays, format } from 'date-fns';
 
 interface EnhancedTrendAnalysisProps {
   weights: WeightEntry[];
+  weightGoals?: WeightGoal[];
 }
 
-export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ weights }) => {
-  const { getWeightUnit } = useUnit();
+export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ weights, weightGoals }) => {
+  const { getWeightUnit, convertWeight } = useUnit();
 
   if (weights.length < 2) {
     return (
@@ -29,7 +31,54 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
   const trend = calculateTrend(weights);
   const isLosingWeight = trend.slope < 0;
   const isGainingWeight = trend.slope > 0;
-  const unit = getWeightUnit();
+  const unit = getWeightUnit() as 'kg' | 'lbs';
+
+  // Goal-aware metrics
+  const currentUnit = unit;
+  const latest = [...weights].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[weights.length - 1];
+  const activeGoals = (weightGoals ?? []).filter(g => g.isActive);
+  const activeGoal = activeGoals.length ? activeGoals.reduce((acc, g) => (parseISO(g.targetDate) < parseISO(acc.targetDate) ? g : acc)) : null;
+
+  let requiredWeeklyChange: number | null = null;
+  let paceDelta: number | null = null;
+  let paceDeltaColor = 'text-gray-600';
+  let projectionWindow: null | { minDate: Date; maxDate: Date; estDate: Date } = null;
+  let weeksUntilTarget: number | null = null;
+  let direction = 0;
+
+  if (activeGoal && latest) {
+    const currentWeight = convertWeight(latest.weight, latest.unit, currentUnit);
+    const goalWeight = convertWeight(activeGoal.targetWeight, activeGoal.unit, currentUnit);
+    const deltaToGoal = goalWeight - currentWeight;
+    direction = Math.sign(deltaToGoal);
+    weeksUntilTarget = differenceInCalendarDays(parseISO(activeGoal.targetDate), new Date()) / 7;
+    if (weeksUntilTarget !== 0) {
+      requiredWeeklyChange = deltaToGoal / weeksUntilTarget;
+    }
+    const actualWeeklyChange = trend.weeklyChange;
+    const actualTowards = direction * actualWeeklyChange;
+    const requiredTowards = requiredWeeklyChange != null ? Math.abs(requiredWeeklyChange) : null;
+
+    if (requiredTowards != null && Number.isFinite(requiredTowards)) {
+      paceDelta = actualTowards - requiredTowards;
+      paceDeltaColor = paceDelta >= 0 ? 'text-green-600' : (actualTowards <= 0 ? 'text-red-600' : 'text-orange-600');
+    }
+
+    const canProject = actualTowards > 0;
+    if (canProject) {
+      const daysToGoal = (Math.abs(deltaToGoal) / actualTowards) * 7;
+      const confidence = Math.max(0, Math.min(1, trend.rSquared));
+      const windowPct = Math.max(0.1, Math.min(0.6, 1 - confidence));
+      const minDays = Math.max(0, Math.round(daysToGoal * (1 - windowPct)));
+      const maxDays = Math.round(daysToGoal * (1 + windowPct));
+      const estDays = Math.round(daysToGoal);
+      projectionWindow = {
+        minDate: addDays(new Date(), minDays),
+        maxDate: addDays(new Date(), maxDays),
+        estDate: addDays(new Date(), estDays),
+      };
+    }
+  }
 
   const getStreakIcon = (type: string) => {
     switch (type) {
@@ -109,6 +158,52 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
               </p>
             </div>
           </div>
+
+          {/* Pace vs Target (slope delta) */}
+          {activeGoal && (
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-gradient-to-r from-emerald-50 to-emerald-100">
+              <div className="p-2 rounded-full bg-emerald-100">
+                <Target className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Pace vs Target</p>
+                <p className={`font-semibold ${paceDeltaColor}`}>
+                  {paceDelta != null && Number.isFinite(paceDelta) ? `${paceDelta >= 0 ? '+' : ''}${paceDelta.toFixed(2)} ${unit}/week` : '—'}
+                </p>
+                <p className="text-xs text-emerald-600">
+                  Required: {requiredWeeklyChange != null && Number.isFinite(requiredWeeklyChange) ? `${requiredWeeklyChange >= 0 ? '+' : ''}${requiredWeeklyChange.toFixed(2)} ${unit}/week` : '—'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Goal hit projection window */}
+          {activeGoal && (
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-gradient-to-r from-rose-50 to-rose-100">
+              <div className="p-2 rounded-full bg-rose-100">
+                <Calendar className="h-5 w-5 text-rose-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Goal Projection</p>
+                {projectionWindow ? (
+                  <>
+                    <p className="font-semibold text-rose-600">
+                      {format(projectionWindow.minDate, 'MMM d')} – {format(projectionWindow.maxDate, 'MMM d')}
+                    </p>
+                    <p className="text-xs text-rose-600">Est: {format(projectionWindow.estDate, 'MMM d')}</p>
+                  </>
+                ) : (
+                  <p className="font-semibold text-gray-600">
+                    {weeksUntilTarget != null && weeksUntilTarget <= 0
+                      ? 'Target date passed'
+                      : direction === 0
+                      ? 'At target'
+                      : 'Trend not toward goal'}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Longest Streak */}
           <div className="flex items-center gap-3 p-4 rounded-lg bg-gradient-to-r from-green-50 to-green-100">

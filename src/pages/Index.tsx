@@ -143,7 +143,7 @@ const IndexContent = () => {
               weightGoals={weightGoals}
             />
             
-            <EnhancedTrendAnalysis weights={weights} />
+            <EnhancedTrendAnalysis weights={weights} weightGoals={weightGoals} />
           </div>
         </div>
       </div>
