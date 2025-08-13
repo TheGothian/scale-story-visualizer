@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, LineChart } from 'recharts';
+import { Button } from '@/components/ui/button';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, LineChart, ReferenceArea } from 'recharts';
 import { Percent } from 'lucide-react';
 import { BodyComposition } from '../types/bodybuilding';
 import { format, parseISO } from 'date-fns';
@@ -57,8 +58,135 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
     scrollRight
   } = useWeightChartScroll(iirChartData.length);
 
-  // Compute a stable Y domain so Y-axis stays fixed while scrolling
-  const yCandidates: number[] = iirChartData.reduce((acc: number[], d: any) => {
+  // Zoom state and helpers
+  const allTimestamps = React.useMemo(() => (
+    iirChartData.map((d: any) => d.timestamp).filter((t: any) => typeof t === 'number')
+  ), [iirChartData]);
+  const overallXMin = allTimestamps.length ? Math.min(...allTimestamps) : 0;
+  const overallXMax = allTimestamps.length ? Math.max(...allTimestamps) : 0;
+
+  const [xDomain, setXDomain] = React.useState<[number, number] | null>(null);
+  React.useEffect(() => {
+    if (allTimestamps.length) setXDomain([overallXMin, overallXMax]);
+  }, [overallXMin, overallXMax, allTimestamps.length]);
+
+  // Desktop drag-to-zoom selection
+  const [refAreaLeft, setRefAreaLeft] = React.useState<number | null>(null);
+  const [refAreaRight, setRefAreaRight] = React.useState<number | null>(null);
+  const [isSelecting, setIsSelecting] = React.useState(false);
+
+  // Pinch-to-zoom (mobile)
+  const chartAreaRef = React.useRef<HTMLDivElement | null>(null);
+  const pointers = React.useRef<Map<number, number>>(new Map()); // pointerId -> clientX
+  const pinchStartDistance = React.useRef<number | null>(null);
+  const pinchStartDomain = React.useRef<[number, number] | null>(null);
+  const pinchCenterValue = React.useRef<number | null>(null);
+
+  const clampDomain = React.useCallback((d: [number, number]): [number, number] => {
+    let [a, b] = d[0] <= d[1] ? d : [d[1], d[0]];
+    const totalRange = Math.max(1, overallXMax - overallXMin);
+    const minSpan = Math.max(totalRange / 100, 24 * 60 * 60 * 1000); // at least 1 day
+    if (b - a < minSpan) {
+      const mid = (a + b) / 2;
+      a = mid - minSpan / 2;
+      b = mid + minSpan / 2;
+    }
+    a = Math.max(overallXMin, a);
+    b = Math.min(overallXMax, b);
+    if (a >= b) return [overallXMin, overallXMax];
+    return [a, b];
+  }, [overallXMin, overallXMax]);
+
+  const resetZoom = React.useCallback(() => {
+    if (allTimestamps.length) setXDomain([overallXMin, overallXMax]);
+  }, [overallXMin, overallXMax, allTimestamps.length]);
+
+  const handleMouseDown = (e: any) => {
+    if (e && typeof e.activeLabel === 'number') {
+      setRefAreaLeft(e.activeLabel);
+      setRefAreaRight(null);
+      setIsSelecting(true);
+    }
+  };
+  const handleMouseMove = (e: any) => {
+    if (!isSelecting) return;
+    if (e && typeof e.activeLabel === 'number') {
+      setRefAreaRight(e.activeLabel);
+    }
+  };
+  const applySelectionZoom = React.useCallback(() => {
+    if (refAreaLeft != null && refAreaRight != null) {
+      const next = clampDomain([refAreaLeft, refAreaRight]);
+      setXDomain(next);
+    }
+    setIsSelecting(false);
+    setRefAreaLeft(null);
+    setRefAreaRight(null);
+  }, [refAreaLeft, refAreaRight, clampDomain]);
+  const handleMouseUp = () => applySelectionZoom();
+  const handleMouseLeave = () => { if (isSelecting) applySelectionZoom(); };
+
+  const setScrollAndChartRef = React.useCallback((node: HTMLDivElement | null) => {
+    chartAreaRef.current = node;
+    // Combine with scroll ref
+    // @ts-ignore
+    if (scrollContainerRef) (scrollContainerRef as any).current = node;
+  }, [scrollContainerRef]);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    (e.currentTarget as any).setPointerCapture?.(e.pointerId);
+    pointers.current.set(e.pointerId, e.clientX);
+    if (pointers.current.size === 2) {
+      const xs = Array.from(pointers.current.values());
+      const dist = Math.abs(xs[0] - xs[1]) || 1;
+      pinchStartDistance.current = dist;
+      pinchStartDomain.current = (xDomain ?? [overallXMin, overallXMax]);
+      const centerX = (xs[0] + xs[1]) / 2;
+      const rect = chartAreaRef.current?.getBoundingClientRect();
+      if (rect && pinchStartDomain.current) {
+        const ratio = Math.min(Math.max((centerX - rect.left) / rect.width, 0), 1);
+        const [d0, d1] = pinchStartDomain.current;
+        pinchCenterValue.current = d0 + ratio * (d1 - d0);
+      } else {
+        pinchCenterValue.current = null;
+      }
+    }
+  };
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!pinchStartDistance.current) return;
+    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, e.clientX);
+    if (pointers.current.size === 2 && pinchStartDomain.current) {
+      const xs = Array.from(pointers.current.values());
+      const dist = Math.abs(xs[0] - xs[1]) || 1;
+      const s = dist / (pinchStartDistance.current || 1);
+      const [d0, d1] = pinchStartDomain.current;
+      const baseRange = d1 - d0;
+      let newRange = baseRange / s; // spread fingers => s>1 => zoom in
+      const totalRange = Math.max(1, overallXMax - overallXMin);
+      const minRange = Math.max(totalRange / 100, 24 * 60 * 60 * 1000);
+      const maxRange = totalRange;
+      newRange = Math.max(minRange, Math.min(maxRange, newRange));
+      const center = pinchCenterValue.current ?? (d0 + d1) / 2;
+      let next: [number, number] = [center - newRange / 2, center + newRange / 2];
+      next = clampDomain(next);
+      setXDomain(next);
+    }
+  };
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) {
+      pinchStartDistance.current = null;
+      pinchStartDomain.current = null;
+      pinchCenterValue.current = null;
+    }
+  };
+
+  const currentXDomain: [number, number] = xDomain ?? [overallXMin || 0, overallXMax || 0];
+  const isZoomed = xDomain ? (xDomain[0] > overallXMin || xDomain[1] < overallXMax) : false;
+
+  // Compute a stable Y domain based on current X range
+  const dataInRange = iirChartData.filter((d: any) => d.timestamp >= currentXDomain[0] && d.timestamp <= currentXDomain[1]);
+  const yCandidates: number[] = dataInRange.reduce((acc: number[], d: any) => {
     if (typeof d.bodyFat === 'number') acc.push(d.bodyFat);
     if (showIIR && typeof d.iirFiltered === 'number') acc.push(d.iirFiltered);
     return acc;
@@ -106,13 +234,20 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
               <Percent className="h-5 w-5" />
               Body Fat Progress
             </CardTitle>
-            <WeightChartScrollControls
-              dataLength={iirChartData.length}
-              canScrollLeft={canScrollLeft}
-              canScrollRight={canScrollRight}
-              onScrollLeft={scrollLeft}
-              onScrollRight={scrollRight}
-            />
+            <div className="flex items-center gap-2">
+              {hasData && (
+                <Button variant="outline" size="sm" onClick={resetZoom} disabled={!isZoomed} aria-label="Reset zoom">
+                  Reset Zoom
+                </Button>
+              )}
+              <WeightChartScrollControls
+                dataLength={iirChartData.length}
+                canScrollLeft={canScrollLeft}
+                canScrollRight={canScrollRight}
+                onScrollLeft={scrollLeft}
+                onScrollRight={scrollRight}
+              />
+            </div>
           </div>
           {hasData && (
             <div className="flex items-center gap-2 text-xs text-gray-600 mt-2 flex-wrap">
@@ -151,13 +286,16 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
 
               {/* Scrollable chart area */}
               <div
-                ref={scrollContainerRef}
+                ref={setScrollAndChartRef}
                 className="h-80 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex-1"
                 onClick={handleChartClick}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
               >
                 <div style={{ minWidth: Math.max(800, iirChartData.length * 60) }}>
                   <ResponsiveContainer width="100%" height={320}>
-                    <LineChart data={iirChartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+                    <LineChart data={iirChartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseLeave}>
                       <defs>
                         <linearGradient id="bodyFatGradient" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
@@ -169,7 +307,7 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
                         dataKey="timestamp"
                         type="number"
                         scale="time"
-                        domain={['dataMin', 'dataMax']}
+                        domain={currentXDomain}
                         stroke="#64748b"
                         fontSize={12}
                         tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
@@ -190,6 +328,10 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
                           borderRadius: '8px'
                         }}
                       />
+
+                      {isSelecting && refAreaLeft != null && refAreaRight != null && (
+                        <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} />
+                      )}
 
                       {/* Actual body fat line */}
                       <Line
