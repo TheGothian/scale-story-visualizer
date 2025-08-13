@@ -84,8 +84,16 @@ const IndexContent = () => {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => navigate('/weights')}
+              className="ml-2"
+            >
+              View All Weights
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleSignOut}
-              className="ml-4"
+              className="ml-2"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
