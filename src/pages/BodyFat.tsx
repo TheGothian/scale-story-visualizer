@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useBodyCompositionData } from '@/hooks/useBodyCompositionData';
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BodyFatEditDialog } from '@/components/BodyFatEditDialog';
-import { format, parseISO } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-
+import { Trash2, Pencil, ArrowLeft } from 'lucide-react';
 const BodyFat: React.FC = () => {
   const navigate = useNavigate();
   const { bodyCompositions, deleteBodyComposition, editBodyComposition } = useBodyCompositionData();
@@ -16,10 +18,10 @@ const BodyFat: React.FC = () => {
   const [editBodyFat, setEditBodyFat] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editNote, setEditNote] = useState('');
-
+  const [query, setQuery] = useState('');
   useEffect(() => {
-    document.title = 'Body Fat Progress | Bodybuilding Tracker';
-    const descContent = 'View and manage body fat progress with dates and notes.';
+    document.title = 'All Body Fat Data | Bodybuilding Tracker';
+    const descContent = 'Review, edit, or delete your logged body fat entries.';
     let meta = document.querySelector('meta[name="description"]');
     if (!meta) {
       meta = document.createElement('meta');
@@ -28,21 +30,26 @@ const BodyFat: React.FC = () => {
     }
     meta.setAttribute('content', descContent);
 
-    let link = document.querySelector('link[rel="canonical"]');
+    let link = document.querySelector("link[rel='canonical']") as HTMLLinkElement | null;
     if (!link) {
       link = document.createElement('link');
       link.setAttribute('rel', 'canonical');
       document.head.appendChild(link);
     }
-    link.setAttribute('href', `${window.location.origin}/body-fat`);
+    link.setAttribute('href', window.location.href);
   }, []);
-
   const rows = useMemo(() => {
-    return bodyCompositions
+    const list = bodyCompositions
       .filter((c) => typeof c.bodyFatPercentage === 'number')
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [bodyCompositions]);
-
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    if (!query.trim()) return list;
+    const q = query.toLowerCase();
+    return list.filter((c) =>
+      c.date.includes(q) ||
+      String(c.bodyFatPercentage ?? '').includes(q) ||
+      (c.note ?? '').toLowerCase().includes(q)
+    );
+  }, [bodyCompositions, query]);
   const openEdit = (id: string) => {
     const comp = bodyCompositions.find((c) => c.id === id);
     if (!comp) return;
