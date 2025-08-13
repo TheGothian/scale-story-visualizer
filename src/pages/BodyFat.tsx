@@ -77,40 +77,73 @@ const BodyFat: React.FC = () => {
   };
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Body Fat Progress</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/')}>Home</Button>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      <header className="border-b bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/")}> 
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back
+          </Button>
+          <h1 className="text-2xl font-bold">All Body Fat Data</h1>
         </div>
       </header>
 
-      <section>
-        <Table>
-          <TableCaption>All recorded body fat entries.</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Body Fat %</TableHead>
-              <TableHead>Note</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell>{format(parseISO(r.date), 'yyyy-MM-dd')}</TableCell>
-                <TableCell>{r.bodyFatPercentage?.toFixed(1)}</TableCell>
-                <TableCell className="max-w-[400px] truncate" title={r.note}>{r.note || '-'}</TableCell>
-                <TableCell className="text-right space-x-2">
-                  <Button size="sm" variant="outline" onClick={() => openEdit(r.id)}>Edit</Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleDelete(r.id)}>Delete</Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </section>
+      <main className="container mx-auto px-4 py-6">
+        <section className="mb-4">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-muted-foreground">Review, edit, or delete your logged body fat entries.</p>
+            </div>
+            <div className="w-56">
+              <Label htmlFor="bf-search">Search</Label>
+              <Input
+                id="bf-search"
+                placeholder="Filter by date, value, or note"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <Card>
+            <CardHeader>
+              <CardTitle>Entries ({rows.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Body Fat %</TableHead>
+                      <TableHead>Note</TableHead>
+                      <TableHead className="w-[120px] text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell>{r.date}</TableCell>
+                        <TableCell>{r.bodyFatPercentage?.toFixed(1)}</TableCell>
+                        <TableCell className="max-w-[420px] truncate" title={r.note}>{r.note || "—"}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button size="icon" variant="outline" aria-label="Edit" onClick={() => openEdit(r.id)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="destructive" aria-label="Delete" onClick={() => handleDelete(r.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      </main>
 
       <BodyFatEditDialog
         isOpen={isEditOpen}
@@ -123,7 +156,7 @@ const BodyFat: React.FC = () => {
         setEditNote={setEditNote}
         onSave={handleSave}
       />
-    </main>
+    </div>
   );
 };
 
