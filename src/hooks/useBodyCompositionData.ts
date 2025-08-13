@@ -36,6 +36,7 @@ export const useBodyCompositionData = () => {
       boneMass: comp.bone_mass ? Number(comp.bone_mass) : undefined,
       metabolicAge: comp.metabolic_age,
       measurements: (comp.measurements as BodyMeasurements) || {},
+      note: comp.note ?? undefined,
       createdAt: comp.created_at
     }));
     
@@ -60,7 +61,8 @@ export const useBodyCompositionData = () => {
           water_percentage: composition.waterPercentage,
           bone_mass: composition.boneMass,
           metabolic_age: composition.metabolicAge,
-          measurements: composition.measurements as any
+          measurements: composition.measurements as any,
+          note: composition.note
         }
       }
     });
@@ -80,6 +82,7 @@ export const useBodyCompositionData = () => {
       boneMass: data.bone_mass ? Number(data.bone_mass) : undefined,
       metabolicAge: data.metabolic_age,
       measurements: (data.measurements as BodyMeasurements) || {},
+      note: data.note ?? undefined,
       createdAt: data.created_at
     };
     
@@ -109,7 +112,8 @@ export const useBodyCompositionData = () => {
           date: updatedComposition.date,
           body_fat_percentage: updatedComposition.bodyFatPercentage,
           muscle_mass: updatedComposition.muscleMass,
-          measurements: updatedComposition.measurements as any
+          measurements: updatedComposition.measurements as any,
+          note: updatedComposition.note
         }
       }
     });

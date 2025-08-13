@@ -92,6 +92,14 @@ const IndexContent = () => {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => navigate('/body-fat')}
+              className="ml-2"
+            >
+              Body Fat Entries
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleSignOut}
               className="ml-2"
             >

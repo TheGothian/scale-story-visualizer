@@ -9,6 +9,7 @@ export interface BodyComposition {
   boneMass?: number;
   metabolicAge?: number;
   measurements: BodyMeasurements;
+  note?: string;
   createdAt: string;
 }
 

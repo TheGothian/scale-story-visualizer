@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 interface BodyFatEditDialogProps {
   isOpen: boolean;
@@ -12,6 +13,8 @@ interface BodyFatEditDialogProps {
   setEditBodyFat: (bodyFat: string) => void;
   editDate: string;
   setEditDate: (date: string) => void;
+  editNote?: string;
+  setEditNote?: (note: string) => void;
   onSave: () => void;
 }
 
@@ -22,6 +25,8 @@ export const BodyFatEditDialog: React.FC<BodyFatEditDialogProps> = ({
   setEditBodyFat,
   editDate,
   setEditDate,
+  editNote,
+  setEditNote,
   onSave,
 }) => {
   return (
@@ -53,6 +58,17 @@ export const BodyFatEditDialog: React.FC<BodyFatEditDialogProps> = ({
               onChange={(e) => setEditDate(e.target.value)}
             />
           </div>
+          {typeof setEditNote === 'function' && (
+            <div>
+              <Label htmlFor="edit-note">Note (optional)</Label>
+              <Textarea
+                id="edit-note"
+                value={editNote ?? ''}
+                onChange={(e) => setEditNote?.(e.target.value)}
+                placeholder="Add a note"
+              />
+            </div>
+          )}
           <div className="flex gap-2">
             <Button
               variant="outline"
