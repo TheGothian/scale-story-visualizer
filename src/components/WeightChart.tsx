@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine } from 'recharts';
+import { Button } from '@/components/ui/button';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, ReferenceLine, ReferenceArea } from 'recharts';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { format } from 'date-fns';
 import { WeightEntry, SavedPrediction, WeightGoal } from '../types/weight';
@@ -14,7 +15,7 @@ import { WeightChartScrollControls } from './WeightChartScrollControls';
 import { useWeightChart } from '../hooks/useWeightChart';
 import { useWeightChartData } from '../hooks/useWeightChartData';
 import { useWeightChartScroll } from '../hooks/useWeightChartScroll';
-
+import { useIsMobile } from '../hooks/use-mobile';
 interface WeightChartProps {
   weights: WeightEntry[];
   savedPredictions: SavedPrediction[];
@@ -85,13 +86,40 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     });
   };
 
-  // Define colors for goal lines
-  const goalColors = ['#ef4444', '#f97316', '#84cc16', '#06b6d4', '#8b5cf6', '#ec4899'];
+// Mobile detection
+const isMobile = useIsMobile();
 
-  // Debug logging
-  console.log('WeightChart render - weights:', weights?.length || 0, 'predictions:', savedPredictions?.length || 0, 'goals:', weightGoals?.length || 0);
-  console.log('Goal lines to render:', goalLines);
+// Overall X-domain from data
+const allTimestamps = React.useMemo(() => (
+  combinedData.map((d: any) => d.timestamp).filter((t: any) => typeof t === 'number')
+), [combinedData]);
+const overallXMin = Math.min(...allTimestamps);
+const overallXMax = Math.max(...allTimestamps);
 
+// Zoom state (X domain)
+const [xDomain, setXDomain] = React.useState<[number, number] | null>(null);
+React.useEffect(() => {
+  if (allTimestamps.length) setXDomain([overallXMin, overallXMax]);
+}, [overallXMin, overallXMax, allTimestamps.length]);
+
+// Desktop drag-to-zoom selection
+const [refAreaLeft, setRefAreaLeft] = React.useState<number | null>(null);
+const [refAreaRight, setRefAreaRight] = React.useState<number | null>(null);
+const [isSelecting, setIsSelecting] = React.useState(false);
+
+// Pinch-to-zoom (mobile)
+const chartAreaRef = React.useRef<HTMLDivElement>(null);
+const pointers = React.useRef<Map<number, number>>(new Map()); // pointerId -> clientX
+const pinchStartDistance = React.useRef<number | null>(null);
+const pinchStartDomain = React.useRef<[number, number] | null>(null);
+const pinchCenterValue = React.useRef<number | null>(null);
+
+// Define colors for goal lines
+const goalColors = ['#ef4444', '#f97316', '#84cc16', '#06b6d4', '#8b5cf6', '#ec4899'];
+
+// Debug logging
+console.log('WeightChart render - weights:', weights?.length || 0, 'predictions:', savedPredictions?.length || 0, 'goals:', weightGoals?.length || 0);
+console.log('Goal lines to render:', goalLines);
   // Early return for no data
   if (!weights || weights.length === 0) {
     console.log('No weights data available');
@@ -192,7 +220,9 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     );
   }
 
-  const yCandidates: number[] = combinedData.reduce((acc: number[], d: any) => {
+  const currentXDomain: [number, number] = xDomain ?? [overallXMin, overallXMax];
+  const dataInRange = combinedData.filter((d: any) => d.timestamp >= currentXDomain[0] && d.timestamp <= currentXDomain[1]);
+  const yCandidates: number[] = dataInRange.reduce((acc: number[], d: any) => {
     if (typeof d.displayWeight === 'number') acc.push(d.displayWeight);
     if (showIIR && typeof d.iirFiltered === 'number') acc.push(d.iirFiltered);
     return acc;
@@ -204,6 +234,101 @@ export const WeightChart: React.FC<WeightChartProps> = ({
   const yMax = Math.max(...yCandidates);
   const yPadding = 5;
   const yDomain: [number, number] = [Math.floor(yMin) - yPadding, Math.ceil(yMax) + yPadding];
+
+  // Helpers and handlers for zoom
+  const clampDomain = React.useCallback((d: [number, number]): [number, number] => {
+    let [a, b] = d[0] <= d[1] ? d : [d[1], d[0]];
+    const totalRange = overallXMax - overallXMin || 1;
+    const minSpan = Math.max(totalRange / 100, 24 * 60 * 60 * 1000); // at least 1 day
+    if (b - a < minSpan) {
+      const mid = (a + b) / 2;
+      a = mid - minSpan / 2;
+      b = mid + minSpan / 2;
+    }
+    a = Math.max(overallXMin, a);
+    b = Math.min(overallXMax, b);
+    if (a >= b) return [overallXMin, overallXMax];
+    return [a, b];
+  }, [overallXMin, overallXMax]);
+
+  const resetZoom = React.useCallback(() => {
+    setXDomain([overallXMin, overallXMax]);
+  }, [overallXMin, overallXMax]);
+
+  const applySelectionZoom = React.useCallback(() => {
+    if (refAreaLeft != null && refAreaRight != null) {
+      const next = clampDomain([refAreaLeft, refAreaRight]);
+      setXDomain(next);
+    }
+    setIsSelecting(false);
+    setRefAreaLeft(null);
+    setRefAreaRight(null);
+  }, [refAreaLeft, refAreaRight, clampDomain]);
+
+  const handleMouseDown = (e: any) => {
+    if (e && typeof e.activeLabel === 'number') {
+      setRefAreaLeft(e.activeLabel);
+      setRefAreaRight(null);
+      setIsSelecting(true);
+    }
+  };
+  const handleMouseMove = (e: any) => {
+    if (!isSelecting) return;
+    if (e && typeof e.activeLabel === 'number') {
+      setRefAreaRight(e.activeLabel);
+    }
+  };
+  const handleMouseUp = () => applySelectionZoom();
+  const handleMouseLeave = () => { if (isSelecting) applySelectionZoom(); };
+
+  // Pinch-to-zoom handlers (mobile)
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    (e.currentTarget as any).setPointerCapture?.(e.pointerId);
+    pointers.current.set(e.pointerId, e.clientX);
+    if (pointers.current.size === 2) {
+      const xs = Array.from(pointers.current.values());
+      const dist = Math.abs(xs[0] - xs[1]) || 1;
+      pinchStartDistance.current = dist;
+      pinchStartDomain.current = (xDomain ?? [overallXMin, overallXMax]);
+      const centerX = (xs[0] + xs[1]) / 2;
+      const rect = chartAreaRef.current?.getBoundingClientRect();
+      if (rect && pinchStartDomain.current) {
+        const ratio = Math.min(Math.max((centerX - rect.left) / rect.width, 0), 1);
+        const [d0, d1] = pinchStartDomain.current;
+        pinchCenterValue.current = d0 + ratio * (d1 - d0);
+      } else {
+        pinchCenterValue.current = null;
+      }
+    }
+  };
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!pinchStartDistance.current) return;
+    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, e.clientX);
+    if (pointers.current.size === 2 && pinchStartDomain.current) {
+      const xs = Array.from(pointers.current.values());
+      const dist = Math.abs(xs[0] - xs[1]) || 1;
+      const s = dist / (pinchStartDistance.current || 1);
+      const [d0, d1] = pinchStartDomain.current;
+      const baseRange = d1 - d0;
+      let newRange = baseRange / s; // spread fingers => s>1 => zoom in
+      const totalRange = overallXMax - overallXMin || 1;
+      const minRange = Math.max(totalRange / 100, 24 * 60 * 60 * 1000);
+      const maxRange = totalRange;
+      newRange = Math.max(minRange, Math.min(maxRange, newRange));
+      const center = pinchCenterValue.current ?? (d0 + d1) / 2;
+      let next: [number, number] = [center - newRange / 2, center + newRange / 2];
+      next = clampDomain(next);
+      setXDomain(next);
+    }
+  };
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) {
+      pinchStartDistance.current = null;
+      pinchStartDomain.current = null;
+      pinchCenterValue.current = null;
+    }
+  };
 
   return (
     <>
