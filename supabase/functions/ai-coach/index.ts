@@ -46,11 +46,19 @@ serve(async (req) => {
     // Create Supabase client for data operations
     const supabase = createClient(supabaseUrl!, supabaseServiceRoleKey!);
 
-    // For custom auth, we need to verify the token using the custom-auth-me function
-    // Since we can't call edge functions from within edge functions, we'll decode the JWT manually
+    // Verify the custom JWT token
+    const jwtSecret = Deno.env.get('CUSTOM_JWT_SECRET');
+    if (!jwtSecret) {
+      console.error('Missing CUSTOM_JWT_SECRET environment variable');
+      throw new Error('JWT secret not configured');
+    }
+    
     try {
-      // Decode the custom JWT token to get user ID
-      const base64Url = token.split('.')[1];
+      // Verify JWT token manually
+      const [header, payload, signature] = token.split('.');
+      
+      // Decode the payload
+      const base64Url = payload;
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
@@ -58,6 +66,31 @@ serve(async (req) => {
       
       const decoded = JSON.parse(jsonPayload);
       console.log('Decoded token payload:', { sub: decoded.sub, email: decoded.email });
+      
+      // Verify token signature using crypto
+      const encoder = new TextEncoder();
+      const keyData = encoder.encode(jwtSecret);
+      const cryptoKey = await crypto.subtle.importKey(
+        'raw',
+        keyData,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign', 'verify']
+      );
+      
+      const dataToVerify = encoder.encode(`${header}.${payload}`);
+      const signatureBuffer = Uint8Array.from(atob(signature.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+      
+      const isValid = await crypto.subtle.verify('HMAC', cryptoKey, signatureBuffer, dataToVerify);
+      
+      if (!isValid) {
+        throw new Error('Invalid token signature');
+      }
+      
+      // Check token expiration
+      if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
+        throw new Error('Token has expired');
+      }
       
       if (!decoded.sub) {
         throw new Error('Invalid token: missing user ID');
