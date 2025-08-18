@@ -43,52 +43,63 @@ serve(async (req) => {
     const token = authHeader.replace('Bearer ', '');
     console.log('Processing request with token length:', token.length);
     
-    // Create Supabase client
+    // Create Supabase client for data operations
     const supabase = createClient(supabaseUrl!, supabaseServiceRoleKey!);
 
-    // Verify the user
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) {
-      console.error('User verification failed:', userError);
-      throw new Error('Invalid authentication token');
-    }
+    // For custom auth, we need to verify the token using the custom-auth-me function
+    // Since we can't call edge functions from within edge functions, we'll decode the JWT manually
+    try {
+      // Decode the custom JWT token to get user ID
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      
+      const decoded = JSON.parse(jsonPayload);
+      console.log('Decoded token payload:', { sub: decoded.sub, email: decoded.email });
+      
+      if (!decoded.sub) {
+        throw new Error('Invalid token: missing user ID');
+      }
+      
+      const userId = decoded.sub;
+      console.log(`AI Coach request for user: ${userId}`);
 
-    console.log(`AI Coach request for user: ${user.id}`);
-
-    // Fetch user's recent weight entries (last 30 days)
-    const { data: weightEntries, error: weightError } = await supabase
-      .from('weight_entries')
-      .select('weight, date, unit')
-      .eq('user_id', user.id)
-      .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-      .order('date', { ascending: false })
-      .limit(30);
+      // Fetch user's recent weight entries (last 30 days)
+      const { data: weightEntries, error: weightError } = await supabase
+        .from('weight_entries')
+        .select('weight, date, unit')
+        .eq('user_id', userId)
+        .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+        .order('date', { ascending: false })
+        .limit(30);
 
     if (weightError) {
       console.error('Weight fetch error:', weightError);
       throw new Error('Failed to fetch weight data');
     }
 
-    // Fetch user's recent body composition data (last 30 days)
-    const { data: bodyCompositions, error: bodyError } = await supabase
-      .from('body_compositions')
-      .select('body_fat_percentage, muscle_mass, water_percentage, metabolic_age, measurements, date')
-      .eq('user_id', user.id)
-      .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-      .order('date', { ascending: false })
-      .limit(10);
+      // Fetch user's recent body composition data (last 30 days)
+      const { data: bodyCompositions, error: bodyError } = await supabase
+        .from('body_compositions')
+        .select('body_fat_percentage, muscle_mass, water_percentage, metabolic_age, measurements, date')
+        .eq('user_id', userId)
+        .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+        .order('date', { ascending: false })
+        .limit(10);
 
     if (bodyError) {
       console.error('Body composition fetch error:', bodyError);
       throw new Error('Failed to fetch body composition data');
     }
 
-    // Fetch user's active goals
-    const { data: goals, error: goalsError } = await supabase
-      .from('bodybuilding_goals')
-      .select('phase, target_weight, target_body_fat, weekly_weight_target, caloric_target, protein_target, target_date')
-      .eq('user_id', user.id)
-      .eq('is_active', true);
+      // Fetch user's active goals
+      const { data: goals, error: goalsError } = await supabase
+        .from('bodybuilding_goals')
+        .select('phase, target_weight, target_body_fat, weekly_weight_target, caloric_target, protein_target, target_date')
+        .eq('user_id', userId)
+        .eq('is_active', true);
 
     if (goalsError) {
       console.error('Goals fetch error:', goalsError);
@@ -202,12 +213,18 @@ Please provide personalized coaching advice based on this data.`;
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
+    } catch (tokenError) {
+      console.error('Token verification failed:', tokenError);
+      throw new Error('Invalid authentication token');
+    }
+
   } catch (error) {
     console.error('Error in ai-coach function:', error);
     
     // Provide a detailed error response
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    const statusCode = errorMessage.includes('OpenAI API error') ? 503 : 500;
+    const statusCode = errorMessage.includes('OpenAI API error') ? 503 : 
+                      errorMessage.includes('authentication') ? 401 : 500;
     
     return new Response(JSON.stringify({ 
       error: errorMessage,

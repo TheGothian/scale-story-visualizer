@@ -34,9 +34,15 @@ export const AICoach = () => {
 
     setLoading(true);
     try {
+      // Get the custom auth token from localStorage
+      const token = localStorage.getItem('custom_auth_token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
       const { data, error } = await supabase.functions.invoke('ai-coach', {
         headers: {
-          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
