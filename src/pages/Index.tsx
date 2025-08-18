@@ -13,6 +13,7 @@ import { PhaseGoalSetter } from '../components/PhaseGoalSetter';
 import { BodybuildingAnalytics } from '../components/BodybuildingAnalytics';
 import { BodyFatForm } from '../components/BodyFatForm';
 import { BodyFatChart } from '../components/BodyFatChart';
+import { AICoach } from '../components/AICoach';
 import { useAuth } from '../hooks/useAuth';
 import { useAllData } from '../hooks/useAllData';
 import { useNavigate } from 'react-router-dom';
@@ -160,6 +161,8 @@ const IndexContent = () => {
             />
             
             <EnhancedTrendAnalysis weights={weights} weightGoals={weightGoals} />
+
+            <AICoach />
           </div>
         </div>
       </div>

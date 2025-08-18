@@ -1,0 +1,188 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // Get user authentication
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header found');
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Create Supabase client
+    const supabase = createClient(supabaseUrl!, supabaseServiceRoleKey!);
+
+    // Verify the user
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
+      throw new Error('Invalid authentication token');
+    }
+
+    console.log(`AI Coach request for user: ${user.id}`);
+
+    // Fetch user's recent weight entries (last 30 days)
+    const { data: weightEntries, error: weightError } = await supabase
+      .from('weight_entries')
+      .select('weight, date, unit')
+      .eq('user_id', user.id)
+      .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+      .order('date', { ascending: false })
+      .limit(30);
+
+    if (weightError) {
+      console.error('Weight fetch error:', weightError);
+      throw new Error('Failed to fetch weight data');
+    }
+
+    // Fetch user's recent body composition data (last 30 days)
+    const { data: bodyCompositions, error: bodyError } = await supabase
+      .from('body_compositions')
+      .select('body_fat_percentage, muscle_mass, water_percentage, metabolic_age, measurements, date')
+      .eq('user_id', user.id)
+      .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+      .order('date', { ascending: false })
+      .limit(10);
+
+    if (bodyError) {
+      console.error('Body composition fetch error:', bodyError);
+      throw new Error('Failed to fetch body composition data');
+    }
+
+    // Fetch user's active goals
+    const { data: goals, error: goalsError } = await supabase
+      .from('bodybuilding_goals')
+      .select('phase, target_weight, target_body_fat, weekly_weight_target, caloric_target, protein_target, target_date')
+      .eq('user_id', user.id)
+      .eq('is_active', true);
+
+    if (goalsError) {
+      console.error('Goals fetch error:', goalsError);
+    }
+
+    // Prepare data summary for AI analysis
+    const latestWeight = weightEntries?.[0];
+    const latestBodyComp = bodyCompositions?.[0];
+    const weightTrend = weightEntries?.slice(0, 7); // Last 7 entries for trend
+    
+    const dataContext = {
+      currentWeight: latestWeight ? `${latestWeight.weight} ${latestWeight.unit}` : 'No recent data',
+      weightTrend: weightTrend?.map(w => ({ weight: w.weight, date: w.date, unit: w.unit })) || [],
+      bodyFat: latestBodyComp?.body_fat_percentage || null,
+      muscleMass: latestBodyComp?.muscle_mass || null,
+      waterPercentage: latestBodyComp?.water_percentage || null,
+      metabolicAge: latestBodyComp?.metabolic_age || null,
+      measurements: latestBodyComp?.measurements || null,
+      activeGoals: goals || [],
+      dataAvailable: {
+        hasWeightData: weightEntries && weightEntries.length > 0,
+        hasBodyCompData: bodyCompositions && bodyCompositions.length > 0,
+        hasGoals: goals && goals.length > 0
+      }
+    };
+
+    console.log('Data context prepared:', dataContext);
+
+    // Create AI prompt based on available data
+    const systemPrompt = `You are a professional fitness and nutrition coach. Analyze the user's body composition and weight data to provide personalized advice.
+
+Your analysis should be:
+1. Evidence-based and practical
+2. Focused on sustainable changes
+3. Specific about calorie and macro recommendations
+4. Considerate of their goals and current progress
+
+Provide advice in these areas:
+- Current progress assessment
+- Caloric intake recommendations (with specific daily targets)
+- Macronutrient distribution (protein, carbs, fats)
+- Practical diet suggestions
+- Hydration and lifestyle tips
+
+Keep your response concise but actionable, around 300-400 words.`;
+
+    const userPrompt = `Here is my fitness data for analysis:
+
+Current Status:
+- Latest weight: ${dataContext.currentWeight}
+- Body fat percentage: ${dataContext.bodyFat ? dataContext.bodyFat + '%' : 'Not measured'}
+- Muscle mass: ${dataContext.muscleMass ? dataContext.muscleMass + ' kg' : 'Not measured'}
+- Water percentage: ${dataContext.waterPercentage ? dataContext.waterPercentage + '%' : 'Not measured'}
+- Metabolic age: ${dataContext.metabolicAge || 'Not measured'}
+
+Recent Weight Trend (last 7 entries):
+${dataContext.weightTrend.length > 0 ? 
+  dataContext.weightTrend.map(w => `${w.date}: ${w.weight} ${w.unit}`).join('\n') : 
+  'No recent weight data available'}
+
+Active Goals:
+${dataContext.activeGoals.length > 0 ? 
+  dataContext.activeGoals.map(g => 
+    `Phase: ${g.phase}, Target Weight: ${g.target_weight || 'Not set'}, Target Body Fat: ${g.target_body_fat || 'Not set'}%, Weekly Target: ${g.weekly_weight_target || 'Not set'} per week, Caloric Target: ${g.caloric_target || 'Not set'} calories, Protein Target: ${g.protein_target || 'Not set'}g`
+  ).join('\n') : 
+  'No active goals set'}
+
+Please provide personalized coaching advice based on this data.`;
+
+    // Call OpenAI API
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-5-2025-08-07',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        max_completion_tokens: 800,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI API error:', response.status, errorText);
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const aiData = await response.json();
+    const coachingAdvice = aiData.choices[0].message.content;
+
+    console.log('AI coaching advice generated successfully');
+
+    return new Response(JSON.stringify({ 
+      advice: coachingAdvice,
+      dataUsed: dataContext.dataAvailable 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (error) {
+    console.error('Error in ai-coach function:', error);
+    return new Response(JSON.stringify({ 
+      error: error.message || 'An unexpected error occurred',
+      advice: 'Unable to generate coaching advice at this time. Please try again later.'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
