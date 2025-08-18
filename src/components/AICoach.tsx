@@ -36,6 +36,7 @@ export const AICoach = () => {
     try {
       // Get the custom auth token from localStorage
       const token = localStorage.getItem('custom_auth_token');
+      console.log('Token found:', !!token, token?.substring(0, 20) + '...');
       if (!token) {
         throw new Error('No authentication token found');
       }
