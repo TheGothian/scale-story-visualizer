@@ -158,7 +158,7 @@ ${dataContext.activeGoals.length > 0 ?
 
 Please provide personalized coaching advice based on this data.`;
 
-    // Call OpenAI API
+    console.log('Calling OpenAI API...');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -175,13 +175,22 @@ Please provide personalized coaching advice based on this data.`;
       }),
     });
 
+    console.log('OpenAI API response status:', response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenAI API error:', response.status, errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const aiData = await response.json();
+    console.log('AI response received, processing...');
+    
+    if (!aiData.choices || !aiData.choices[0] || !aiData.choices[0].message) {
+      console.error('Invalid AI response structure:', aiData);
+      throw new Error('Invalid response from OpenAI API');
+    }
+    
     const coachingAdvice = aiData.choices[0].message.content;
 
     console.log('AI coaching advice generated successfully');
@@ -195,11 +204,17 @@ Please provide personalized coaching advice based on this data.`;
 
   } catch (error) {
     console.error('Error in ai-coach function:', error);
+    
+    // Provide a detailed error response
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    const statusCode = errorMessage.includes('OpenAI API error') ? 503 : 500;
+    
     return new Response(JSON.stringify({ 
-      error: error.message || 'An unexpected error occurred',
-      advice: 'Unable to generate coaching advice at this time. Please try again later.'
+      error: errorMessage,
+      advice: 'Unable to generate coaching advice at this time. Please try again later.',
+      timestamp: new Date().toISOString()
     }), {
-      status: 500,
+      status: statusCode,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
