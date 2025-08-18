@@ -7,24 +7,41 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-const supabaseUrl = Deno.env.get('SUPABASE_URL');
-const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
 serve(async (req) => {
+  console.log('AI Coach function called:', req.method);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Check environment variables
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    console.log('Environment check:', {
+      hasOpenAIKey: !!openAIApiKey,
+      hasSupabaseUrl: !!supabaseUrl,
+      hasServiceRoleKey: !!supabaseServiceRoleKey
+    });
+
+    if (!openAIApiKey) {
+      console.error('Missing OPENAI_API_KEY environment variable');
+      throw new Error('OpenAI API key not configured');
+    }
+
     // Get user authentication
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
+      console.error('No authorization header found');
       throw new Error('No authorization header found');
     }
 
     const token = authHeader.replace('Bearer ', '');
+    console.log('Processing request with token length:', token.length);
     
     // Create Supabase client
     const supabase = createClient(supabaseUrl!, supabaseServiceRoleKey!);
@@ -32,6 +49,7 @@ serve(async (req) => {
     // Verify the user
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
+      console.error('User verification failed:', userError);
       throw new Error('Invalid authentication token');
     }
 
