@@ -351,6 +351,17 @@ console.log('Goal lines to render:', goalLines);
                   </span>
                 </div>
               )}
+              {combinedData.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={resetZoom} 
+                  disabled={!xDomain || (xDomain[0] <= overallXMin && xDomain[1] >= overallXMax)} 
+                  aria-label="Reset zoom"
+                >
+                  Reset Zoom
+                </Button>
+              )}
               <WeightChartScrollControls
                 dataLength={combinedData.length}
                 canScrollLeft={canScrollLeft}
@@ -386,16 +397,26 @@ console.log('Goal lines to render:', goalLines);
               ref={scrollContainerRef}
               className="h-80 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex-1"
               onClick={handleChartClick}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
             >
               <div style={{ minWidth: Math.max(800, combinedData.length * 60) }}>
                 <ResponsiveContainer width="100%" height={320}>
-                  <LineChart data={combinedData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+                  <LineChart 
+                    data={combinedData} 
+                    margin={{ top: 20, right: 30, left: 10, bottom: 5 }}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseLeave}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
                     <XAxis 
                       dataKey="timestamp"
                       type="number"
                       scale="time"
-                      domain={['dataMin', 'dataMax']}
+                      domain={currentXDomain}
                       stroke="#64748b"
                       fontSize={12}
                       tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
@@ -406,6 +427,10 @@ console.log('Goal lines to render:', goalLines);
                     <Tooltip content={(props) => (
                       <WeightChartTooltip {...props} onDeletePrediction={handleDeletePrediction} />
                     )} />
+
+                    {isSelecting && refAreaLeft != null && refAreaRight != null && (
+                      <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} />
+                    )}
 
                     {goalLines.filter((g) => visibleGoals.has(g.id)).map((goal, index) => (
                       <ReferenceLine
