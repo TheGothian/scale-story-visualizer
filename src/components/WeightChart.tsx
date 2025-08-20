@@ -277,11 +277,13 @@ console.log('Goal lines to render:', goalLines);
   }, [currentXDomain]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (!chartAreaRef.current) return;
+    console.log('Mouse down triggered');
+    if (!scrollContainerRef.current) return;
     e.preventDefault();
     e.stopPropagation();
     
-    const dataValue = getDataValueFromMouseX(e.clientX, chartAreaRef.current);
+    const dataValue = getDataValueFromMouseX(e.clientX, scrollContainerRef.current);
+    console.log('Setting refAreaLeft to:', dataValue);
     setRefAreaLeft(dataValue);
     setRefAreaRight(null);
     setIsSelecting(true);
@@ -291,24 +293,28 @@ console.log('Goal lines to render:', goalLines);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isSelecting || !chartAreaRef.current) return;
+    if (!isSelecting || !scrollContainerRef.current) return;
+    console.log('Mouse move while selecting');
     e.preventDefault();
     
-    const dataValue = getDataValueFromMouseX(e.clientX, chartAreaRef.current);
+    const dataValue = getDataValueFromMouseX(e.clientX, scrollContainerRef.current);
+    console.log('Setting refAreaRight to:', dataValue);
     setRefAreaRight(dataValue);
   };
   const handleMouseUp = (e: React.MouseEvent) => {
+    console.log('Mouse up triggered, applying zoom');
     e.preventDefault();
     document.body.style.userSelect = '';
     applySelectionZoom();
   };
 
   const handleMouseLeave = () => { 
+    console.log('Mouse leave triggered');
     document.body.style.userSelect = '';
     if (isSelecting) applySelectionZoom(); 
   };
 
-  // Pinch-to-zoom handlers (mobile)
+  // Pinch-to-zoom handlers (mobile) - updated to use scrollContainerRef
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     (e.currentTarget as any).setPointerCapture?.(e.pointerId);
     pointers.current.set(e.pointerId, e.clientX);
@@ -318,7 +324,7 @@ console.log('Goal lines to render:', goalLines);
       pinchStartDistance.current = dist;
       pinchStartDomain.current = (xDomain ?? [overallXMin, overallXMax]);
       const centerX = (xs[0] + xs[1]) / 2;
-      const rect = chartAreaRef.current?.getBoundingClientRect();
+      const rect = scrollContainerRef.current?.getBoundingClientRect();
       if (rect && pinchStartDomain.current) {
         const ratio = Math.min(Math.max((centerX - rect.left) / rect.width, 0), 1);
         const [d0, d1] = pinchStartDomain.current;
@@ -421,19 +427,19 @@ console.log('Goal lines to render:', goalLines);
 
             {/* Scrollable chart area */}
             <div
-              ref={chartAreaRef}
+              ref={scrollContainerRef}
               className="h-80 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex-1"
               onClick={handleChartClick}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
             >
               <div 
                 style={{ minWidth: Math.max(800, combinedData.length * 60) }}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseLeave}
                 className="select-none"
               >
                 <ResponsiveContainer width="100%" height={320}>
