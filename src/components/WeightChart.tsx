@@ -268,12 +268,16 @@ console.log('Goal lines to render:', goalLines);
   // Convert mouse coordinates to chart data coordinates
   const getDataValueFromMouseX = React.useCallback((mouseX: number, chartContainer: HTMLElement): number => {
     const rect = chartContainer.getBoundingClientRect();
-    const chartMargin = 40; // Approximate margin from chart configuration
-    const effectiveWidth = rect.width - chartMargin * 2;
-    const relativeX = (mouseX - rect.left - chartMargin) / effectiveWidth;
+    // Account for the fixed Y-axis panel (64px) and chart margins
+    const yAxisWidth = 64;
+    const chartMargin = 40; // Left margin from LineChart
+    const effectiveWidth = rect.width - yAxisWidth - chartMargin * 2;
+    const relativeX = (mouseX - rect.left - yAxisWidth - chartMargin) / effectiveWidth;
     const clampedX = Math.max(0, Math.min(1, relativeX));
     const [domainStart, domainEnd] = currentXDomain;
-    return domainStart + clampedX * (domainEnd - domainStart);
+    const dataValue = domainStart + clampedX * (domainEnd - domainStart);
+    console.log('Mouse conversion:', { mouseX, rectLeft: rect.left, relativeX, clampedX, dataValue, domainStart, domainEnd });
+    return dataValue;
   }, [currentXDomain]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
