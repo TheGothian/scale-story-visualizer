@@ -268,15 +268,40 @@ console.log('Goal lines to render:', goalLines);
   // Convert mouse coordinates to chart data coordinates
   const getDataValueFromMouseX = React.useCallback((mouseX: number, chartContainer: HTMLElement): number => {
     const rect = chartContainer.getBoundingClientRect();
-    // Account for the fixed Y-axis panel (64px) and chart margins
-    const yAxisWidth = 64;
-    const chartMargin = 40; // Left margin from LineChart
-    const effectiveWidth = rect.width - yAxisWidth - chartMargin * 2;
-    const relativeX = (mouseX - rect.left - yAxisWidth - chartMargin) / effectiveWidth;
+    
+    // The scrollable container includes the Y-axis panel, so we need to account for it
+    const yAxisWidth = 64; // Width of the fixed Y-axis panel
+    const chartLeftMargin = 10; // Left margin from LineChart
+    const chartRightMargin = 30; // Right margin from LineChart
+    
+    // Calculate the actual chart area within the scrollable container
+    const chartStartX = yAxisWidth + chartLeftMargin;
+    const chartEndX = rect.width - chartRightMargin;
+    const chartWidth = chartEndX - chartStartX;
+    
+    // Calculate relative position within the chart area
+    const mouseRelativeToContainer = mouseX - rect.left;
+    const mouseRelativeToChart = mouseRelativeToContainer - chartStartX;
+    const relativeX = mouseRelativeToChart / chartWidth;
     const clampedX = Math.max(0, Math.min(1, relativeX));
+    
+    // Convert to data coordinates
     const [domainStart, domainEnd] = currentXDomain;
     const dataValue = domainStart + clampedX * (domainEnd - domainStart);
-    console.log('Mouse conversion:', { mouseX, rectLeft: rect.left, relativeX, clampedX, dataValue, domainStart, domainEnd });
+    
+    console.log('Mouse conversion:', { 
+      mouseX, 
+      rectLeft: rect.left, 
+      mouseRelativeToContainer,
+      mouseRelativeToChart,
+      chartWidth,
+      relativeX, 
+      clampedX, 
+      dataValue, 
+      domainStart, 
+      domainEnd 
+    });
+    
     return dataValue;
   }, [currentXDomain]);
 
