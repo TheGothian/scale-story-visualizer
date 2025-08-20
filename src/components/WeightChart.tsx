@@ -265,21 +265,48 @@ console.log('Goal lines to render:', goalLines);
     setRefAreaRight(null);
   }, [refAreaLeft, refAreaRight, clampDomain]);
 
-  const handleMouseDown = (e: any) => {
-    if (e && typeof e.activeLabel === 'number') {
-      setRefAreaLeft(e.activeLabel);
-      setRefAreaRight(null);
-      setIsSelecting(true);
-    }
+  // Convert mouse coordinates to chart data coordinates
+  const getDataValueFromMouseX = React.useCallback((mouseX: number, chartContainer: HTMLElement): number => {
+    const rect = chartContainer.getBoundingClientRect();
+    const chartMargin = 40; // Approximate margin from chart configuration
+    const effectiveWidth = rect.width - chartMargin * 2;
+    const relativeX = (mouseX - rect.left - chartMargin) / effectiveWidth;
+    const clampedX = Math.max(0, Math.min(1, relativeX));
+    const [domainStart, domainEnd] = currentXDomain;
+    return domainStart + clampedX * (domainEnd - domainStart);
+  }, [currentXDomain]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!chartAreaRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const dataValue = getDataValueFromMouseX(e.clientX, chartAreaRef.current);
+    setRefAreaLeft(dataValue);
+    setRefAreaRight(null);
+    setIsSelecting(true);
+    
+    // Prevent text selection during drag
+    document.body.style.userSelect = 'none';
   };
-  const handleMouseMove = (e: any) => {
-    if (!isSelecting) return;
-    if (e && typeof e.activeLabel === 'number') {
-      setRefAreaRight(e.activeLabel);
-    }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isSelecting || !chartAreaRef.current) return;
+    e.preventDefault();
+    
+    const dataValue = getDataValueFromMouseX(e.clientX, chartAreaRef.current);
+    setRefAreaRight(dataValue);
   };
-  const handleMouseUp = () => applySelectionZoom();
-  const handleMouseLeave = () => { if (isSelecting) applySelectionZoom(); };
+  const handleMouseUp = (e: React.MouseEvent) => {
+    e.preventDefault();
+    document.body.style.userSelect = '';
+    applySelectionZoom();
+  };
+
+  const handleMouseLeave = () => { 
+    document.body.style.userSelect = '';
+    if (isSelecting) applySelectionZoom(); 
+  };
 
   // Pinch-to-zoom handlers (mobile)
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -394,22 +421,25 @@ console.log('Goal lines to render:', goalLines);
 
             {/* Scrollable chart area */}
             <div
-              ref={scrollContainerRef}
+              ref={chartAreaRef}
               className="h-80 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex-1"
               onClick={handleChartClick}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
             >
-              <div style={{ minWidth: Math.max(800, combinedData.length * 60) }}>
+              <div 
+                style={{ minWidth: Math.max(800, combinedData.length * 60) }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseLeave}
+                className="select-none"
+              >
                 <ResponsiveContainer width="100%" height={320}>
                   <LineChart 
                     data={combinedData} 
                     margin={{ top: 20, right: 30, left: 10, bottom: 5 }}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseLeave}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
                     <XAxis 
