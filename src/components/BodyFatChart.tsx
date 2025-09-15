@@ -1,28 +1,41 @@
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Line,
+  LineChart,
+} from "recharts";
+import { Percent } from "lucide-react";
+import { BodyComposition } from "../types/bodybuilding";
+import { format, parseISO } from "date-fns";
+import { useBodyFatChart } from "../hooks/useBodyFatChart";
+import { useBodyFatChartData } from "../hooks/useBodyFatChartData";
+import { BodyFatChartDot } from "./BodyFatChartDot";
+import { BodyFatEditDialog } from "./BodyFatEditDialog";
+import { toast } from "@/hooks/use-toast";
+import { WeightChartScrollControls } from "./WeightChartScrollControls";
+import { useWeightChartScroll } from "../hooks/useWeightChartScroll";
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, LineChart, ReferenceArea } from 'recharts';
-import { Percent } from 'lucide-react';
-import { BodyComposition } from '../types/bodybuilding';
-import { format, parseISO } from 'date-fns';
-import { useBodyFatChart } from '../hooks/useBodyFatChart';
-import { useBodyFatChartData } from '../hooks/useBodyFatChartData';
-import { BodyFatChartDot } from './BodyFatChartDot';
-import { BodyFatEditDialog } from './BodyFatEditDialog';
-import { toast } from '@/hooks/use-toast';
-import { WeightChartScrollControls } from './WeightChartScrollControls';
-import { useWeightChartScroll } from '../hooks/useWeightChartScroll';
 interface BodyFatChartProps {
   compositions: BodyComposition[];
   onDeleteComposition?: (id: string) => void;
-  onEditComposition?: (id: string, updatedComposition: Partial<BodyComposition>) => void;
+  onEditComposition?: (
+    id: string,
+    updatedComposition: Partial<BodyComposition>
+  ) => void;
 }
 
-export const BodyFatChart: React.FC<BodyFatChartProps> = ({ 
+export const BodyFatChart: React.FC<BodyFatChartProps> = ({
   compositions,
   onDeleteComposition = () => {},
-  onEditComposition = () => {}
+  onEditComposition = () => {},
 }) => {
   const {
     editingEntry,
@@ -45,9 +58,19 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
   const { iirChartData } = useBodyFatChartData(compositions);
   const hasData = iirChartData.length > 0;
 
-  // Visibility toggle for IIR filter
+  // Visibility toggles for Actual and IIR filter
+  const [showActual, setShowActual] = React.useState(true);
   const [showIIR, setShowIIR] = React.useState(true);
+  const toggleActual = () => setShowActual((v) => !v);
   const toggleIIR = () => setShowIIR((v) => !v);
+
+  // Time-based zoom functionality
+  const [timeView, setTimeView] = React.useState<
+    "all" | "weekly" | "monthly" | "6month" | "yearly"
+  >("all");
+
+  // Navigation state for time periods
+  const [timeOffset, setTimeOffset] = React.useState(0); // 0 = current, -1 = previous, 1 = next, etc.
 
   // Scroll controls (reuse weight chart scroll hook)
   const {
@@ -55,161 +78,245 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
     canScrollLeft,
     canScrollRight,
     scrollLeft,
-    scrollRight
+    scrollRight,
   } = useWeightChartScroll(iirChartData.length);
 
-  // Zoom state and helpers
-  const allTimestamps = React.useMemo(() => (
-    iirChartData.map((d: any) => d.timestamp).filter((t: any) => typeof t === 'number')
-  ), [iirChartData]);
+  // Overall X-domain from data
+  const allTimestamps = React.useMemo(
+    () =>
+      iirChartData
+        .map((d: any) => d.timestamp)
+        .filter((t: any) => typeof t === "number"),
+    [iirChartData]
+  );
   const overallXMin = allTimestamps.length ? Math.min(...allTimestamps) : 0;
   const overallXMax = allTimestamps.length ? Math.max(...allTimestamps) : 0;
 
-  const [xDomain, setXDomain] = React.useState<[number, number] | null>(null);
-  React.useEffect(() => {
-    if (allTimestamps.length) setXDomain([overallXMin, overallXMax]);
-  }, [overallXMin, overallXMax, allTimestamps.length]);
-
-  // Desktop drag-to-zoom selection
-  const [refAreaLeft, setRefAreaLeft] = React.useState<number | null>(null);
-  const [refAreaRight, setRefAreaRight] = React.useState<number | null>(null);
-  const [isSelecting, setIsSelecting] = React.useState(false);
-
-  // Pinch-to-zoom (mobile)
-  const chartAreaRef = React.useRef<HTMLDivElement | null>(null);
-  const pointers = React.useRef<Map<number, number>>(new Map()); // pointerId -> clientX
-  const pinchStartDistance = React.useRef<number | null>(null);
-  const pinchStartDomain = React.useRef<[number, number] | null>(null);
-  const pinchCenterValue = React.useRef<number | null>(null);
-
-  const clampDomain = React.useCallback((d: [number, number]): [number, number] => {
-    let [a, b] = d[0] <= d[1] ? d : [d[1], d[0]];
-    const totalRange = Math.max(1, overallXMax - overallXMin);
-    const minSpan = Math.max(totalRange / 100, 24 * 60 * 60 * 1000); // at least 1 day
-    if (b - a < minSpan) {
-      const mid = (a + b) / 2;
-      a = mid - minSpan / 2;
-      b = mid + minSpan / 2;
-    }
-    a = Math.max(overallXMin, a);
-    b = Math.min(overallXMax, b);
-    if (a >= b) return [overallXMin, overallXMax];
-    return [a, b];
-  }, [overallXMin, overallXMax]);
-
-  const resetZoom = React.useCallback(() => {
-    if (allTimestamps.length) setXDomain([overallXMin, overallXMax]);
-  }, [overallXMin, overallXMax, allTimestamps.length]);
-
-  const handleMouseDown = (e: any) => {
-    if (e && typeof e.activeLabel === 'number') {
-      setRefAreaLeft(e.activeLabel);
-      setRefAreaRight(null);
-      setIsSelecting(true);
-    }
+  // Time view change handler
+  const handleTimeViewChange = (
+    view: "all" | "weekly" | "monthly" | "6month" | "yearly"
+  ) => {
+    console.log("Time view changing from", timeView, "to", view);
+    setTimeView(view);
+    setTimeOffset(0); // Reset to current period when changing view type
   };
-  const handleMouseMove = (e: any) => {
-    if (!isSelecting) return;
-    if (e && typeof e.activeLabel === 'number') {
-      setRefAreaRight(e.activeLabel);
-    }
+
+  // Navigation handlers
+  const goToPreviousPeriod = () => {
+    setTimeOffset((prev) => prev - 1);
   };
-  const applySelectionZoom = React.useCallback(() => {
-    if (refAreaLeft != null && refAreaRight != null) {
-      const next = clampDomain([refAreaLeft, refAreaRight]);
-      setXDomain(next);
-    }
-    setIsSelecting(false);
-    setRefAreaLeft(null);
-    setRefAreaRight(null);
-  }, [refAreaLeft, refAreaRight, clampDomain]);
-  const handleMouseUp = () => applySelectionZoom();
-  const handleMouseLeave = () => { if (isSelecting) applySelectionZoom(); };
 
-  const setScrollAndChartRef = React.useCallback((node: HTMLDivElement | null) => {
-    chartAreaRef.current = node;
-    // Combine with scroll ref
-    // @ts-ignore
-    if (scrollContainerRef) (scrollContainerRef as any).current = node;
-  }, [scrollContainerRef]);
+  const goToNextPeriod = () => {
+    setTimeOffset((prev) => prev + 1);
+  };
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    (e.currentTarget as any).setPointerCapture?.(e.pointerId);
-    pointers.current.set(e.pointerId, e.clientX);
-    if (pointers.current.size === 2) {
-      const xs = Array.from(pointers.current.values());
-      const dist = Math.abs(xs[0] - xs[1]) || 1;
-      pinchStartDistance.current = dist;
-      pinchStartDomain.current = (xDomain ?? [overallXMin, overallXMax]);
-      const centerX = (xs[0] + xs[1]) / 2;
-      const rect = chartAreaRef.current?.getBoundingClientRect();
-      if (rect && pinchStartDomain.current) {
-        const ratio = Math.min(Math.max((centerX - rect.left) / rect.width, 0), 1);
-        const [d0, d1] = pinchStartDomain.current;
-        pinchCenterValue.current = d0 + ratio * (d1 - d0);
-      } else {
-        pinchCenterValue.current = null;
+  // Calculate time-based X domain
+  const getTimeBasedXDomain = React.useCallback(
+    (view: typeof timeView, offset: number): [number, number] => {
+      if (view === "all") {
+        console.log("Using all data domain:", [overallXMin, overallXMax]);
+        return [overallXMin, overallXMax];
       }
-    }
-  };
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!pinchStartDistance.current) return;
-    if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, e.clientX);
-    if (pointers.current.size === 2 && pinchStartDomain.current) {
-      const xs = Array.from(pointers.current.values());
-      const dist = Math.abs(xs[0] - xs[1]) || 1;
-      const s = dist / (pinchStartDistance.current || 1);
-      const [d0, d1] = pinchStartDomain.current;
-      const baseRange = d1 - d0;
-      let newRange = baseRange / s; // spread fingers => s>1 => zoom in
-      const totalRange = Math.max(1, overallXMax - overallXMin);
-      const minRange = Math.max(totalRange / 100, 24 * 60 * 60 * 1000);
-      const maxRange = totalRange;
-      newRange = Math.max(minRange, Math.min(maxRange, newRange));
-      const center = pinchCenterValue.current ?? (d0 + d1) / 2;
-      let next: [number, number] = [center - newRange / 2, center + newRange / 2];
-      next = clampDomain(next);
-      setXDomain(next);
-    }
-  };
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    pointers.current.delete(e.pointerId);
-    if (pointers.current.size < 2) {
-      pinchStartDistance.current = null;
-      pinchStartDomain.current = null;
-      pinchCenterValue.current = null;
-    }
-  };
 
-  const currentXDomain: [number, number] = xDomain ?? [overallXMin || 0, overallXMax || 0];
-  const isZoomed = xDomain ? (xDomain[0] > overallXMin || xDomain[1] < overallXMax) : false;
+      const now = new Date();
+      const oneDay = 24 * 60 * 60 * 1000;
+
+      let startTime: number;
+      let endTime: number;
+
+      switch (view) {
+        case "weekly": {
+          // Get current week (Monday to Sunday) + offset
+          const dayOfWeek = now.getDay();
+          const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, so Monday = 1
+          const monday = new Date(now);
+          monday.setDate(now.getDate() - mondayOffset);
+          monday.setHours(0, 0, 0, 0);
+
+          // Apply offset
+          monday.setDate(monday.getDate() + offset * 7);
+
+          const sunday = new Date(monday);
+          sunday.setDate(monday.getDate() + 6);
+          sunday.setHours(23, 59, 59, 999);
+
+          startTime = monday.getTime();
+          endTime = sunday.getTime();
+          console.log("Weekly view:", {
+            monday: monday.toISOString(),
+            sunday: sunday.toISOString(),
+            startTime,
+            endTime,
+            offset,
+          });
+          break;
+        }
+        case "monthly": {
+          // Get current month + offset
+          const firstDay = new Date(
+            now.getFullYear(),
+            now.getMonth() + offset,
+            1
+          );
+          const lastDay = new Date(
+            firstDay.getFullYear(),
+            firstDay.getMonth() + 1,
+            0,
+            23,
+            59,
+            59,
+            999
+          );
+
+          startTime = firstDay.getTime();
+          endTime = lastDay.getTime();
+          console.log("Monthly view:", {
+            firstDay: firstDay.toISOString(),
+            lastDay: lastDay.toISOString(),
+            startTime,
+            endTime,
+            offset,
+          });
+          break;
+        }
+        case "6month": {
+          // Get current quarter + offset
+          const currentQuarter = Math.floor(now.getMonth() / 3);
+          const quarterStartMonth = currentQuarter * 3;
+          const quarterStart = new Date(
+            now.getFullYear(),
+            quarterStartMonth + offset * 3,
+            1
+          );
+
+          // Go back 6 months from quarter start
+          const sixMonthStart = new Date(quarterStart);
+          sixMonthStart.setMonth(quarterStart.getMonth() - 6);
+
+          const quarterEnd = new Date(
+            quarterStart.getFullYear(),
+            quarterStart.getMonth() + 3,
+            0,
+            23,
+            59,
+            59,
+            999
+          );
+
+          startTime = sixMonthStart.getTime();
+          endTime = quarterEnd.getTime();
+          console.log("6-month view:", {
+            sixMonthStart: sixMonthStart.toISOString(),
+            quarterEnd: quarterEnd.toISOString(),
+            startTime,
+            endTime,
+            offset,
+          });
+          break;
+        }
+        case "yearly": {
+          // Get current year + offset
+          const yearStart = new Date(now.getFullYear() + offset, 0, 1);
+          const yearEnd = new Date(
+            yearStart.getFullYear(),
+            11,
+            31,
+            23,
+            59,
+            59,
+            999
+          );
+
+          startTime = yearStart.getTime();
+          endTime = yearEnd.getTime();
+          console.log("Yearly view:", {
+            yearStart: yearStart.toISOString(),
+            yearEnd: yearEnd.toISOString(),
+            startTime,
+            endTime,
+            offset,
+          });
+          break;
+        }
+        default:
+          startTime = overallXMin;
+          endTime = overallXMax;
+      }
+
+      // Ensure we don't go before the earliest data point or after the latest
+      startTime = Math.max(startTime, overallXMin);
+      endTime = Math.min(endTime, overallXMax);
+
+      console.log(
+        "Final domain for",
+        view,
+        ":",
+        [startTime, endTime],
+        "data range:",
+        [overallXMin, overallXMax],
+        "offset:",
+        offset
+      );
+      return [startTime, endTime];
+    },
+    [overallXMin, overallXMax]
+  );
+
+  // Calculate time-based X domain and filter data
+  const currentXDomain: [number, number] = getTimeBasedXDomain(
+    timeView,
+    timeOffset
+  );
+  const dataInRange = iirChartData.filter(
+    (d: any) =>
+      d.timestamp >= currentXDomain[0] && d.timestamp <= currentXDomain[1]
+  );
+
+  console.log(
+    "Time view:",
+    timeView,
+    "X domain:",
+    currentXDomain,
+    "data in range:",
+    dataInRange.length,
+    "total data:",
+    iirChartData.length
+  );
 
   // Compute a stable Y domain based on current X range
-  const dataInRange = iirChartData.filter((d: any) => d.timestamp >= currentXDomain[0] && d.timestamp <= currentXDomain[1]);
-  const yCandidates: number[] = dataInRange.reduce((acc: number[], d: any) => {
-    if (typeof d.bodyFat === 'number') acc.push(d.bodyFat);
-    if (showIIR && typeof d.iirFiltered === 'number') acc.push(d.iirFiltered);
-    return acc;
-  }, []);
+  const yCandidates: number[] = React.useMemo(() => {
+    const candidates: number[] = [];
+    dataInRange.forEach((d: any) => {
+      if (showActual && typeof d.bodyFat === "number")
+        candidates.push(d.bodyFat);
+      if (showIIR && typeof d.iirFiltered === "number")
+        candidates.push(d.iirFiltered);
+    });
+    return candidates;
+  }, [dataInRange, showActual, showIIR, timeView, timeOffset]);
+
   const yMin = yCandidates.length ? Math.min(...yCandidates) : 0;
   const yMax = yCandidates.length ? Math.max(...yCandidates) : 50;
   const yPadding = 1;
   const yDomain: [number, number] = [
     Math.max(0, Math.floor(yMin) - yPadding),
-    Math.min(100, Math.ceil(yMax) + yPadding)
+    Math.min(100, Math.ceil(yMax) + yPadding),
   ];
   const handleSaveWithToast = () => {
     handleSaveEdit();
     toast({
       title: "Body fat updated!",
-      description: `Updated to ${editBodyFat}% on ${format(parseISO(editDate), 'MMM dd, yyyy')}`,
+      description: `Updated to ${editBodyFat}% on ${format(
+        parseISO(editDate),
+        "MMM dd, yyyy"
+      )}`,
     });
   };
 
   const CustomDot = (props: any) => {
     const { cx, cy, payload } = props;
     const isActive = activeEntry === payload.id;
-    
+
     return (
       <BodyFatChartDot
         cx={cx}
@@ -236,29 +343,128 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
             </CardTitle>
             <div className="flex items-center gap-2">
               {hasData && (
-                <Button variant="outline" size="sm" onClick={resetZoom} disabled={!isZoomed} aria-label="Reset zoom">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleTimeViewChange("all")}
+                  aria-label="Reset zoom"
+                >
                   Reset Zoom
                 </Button>
               )}
+
+              {/* Time period selector */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant={timeView === "weekly" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleTimeViewChange("weekly")}
+                  className="text-xs px-2 py-1 h-7"
+                  title="Current Week (Monday-Sunday)"
+                >
+                  Week
+                </Button>
+                <Button
+                  variant={timeView === "monthly" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleTimeViewChange("monthly")}
+                  className="text-xs px-2 py-1 h-7"
+                  title="Current Month"
+                >
+                  Month
+                </Button>
+                <Button
+                  variant={timeView === "6month" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleTimeViewChange("6month")}
+                  className="text-xs px-2 py-1 h-7"
+                  title="Current Quarter + Previous Quarter (6 months)"
+                >
+                  6M
+                </Button>
+                <Button
+                  variant={timeView === "yearly" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleTimeViewChange("yearly")}
+                  className="text-xs px-2 py-1 h-7"
+                  title="Current Year"
+                >
+                  Year
+                </Button>
+                <Button
+                  variant={timeView === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleTimeViewChange("all")}
+                  className="text-xs px-2 py-1 h-7"
+                  title="All Data"
+                >
+                  All
+                </Button>
+              </div>
+
+              {/* Time period indicator */}
+              {timeView !== "all" && (
+                <div className="text-xs text-gray-600 text-center">
+                  {timeOffset === 0
+                    ? "Current"
+                    : timeOffset < 0
+                    ? `${Math.abs(timeOffset)} ${
+                        timeView === "weekly"
+                          ? "weeks"
+                          : timeView === "monthly"
+                          ? "months"
+                          : timeView === "6month"
+                          ? "quarters"
+                          : "years"
+                      } ago`
+                    : `${timeOffset} ${
+                        timeView === "weekly"
+                          ? "weeks"
+                          : timeView === "monthly"
+                          ? "months"
+                          : timeView === "6month"
+                          ? "quarters"
+                          : "years"
+                      } ahead`}
+                </div>
+              )}
+
               <WeightChartScrollControls
-                dataLength={iirChartData.length}
-                canScrollLeft={canScrollLeft}
-                canScrollRight={canScrollRight}
-                onScrollLeft={scrollLeft}
-                onScrollRight={scrollRight}
+                dataLength={dataInRange.length}
+                canScrollLeft={
+                  timeView === "all" ? canScrollLeft : timeOffset > -10
+                } // Allow going back up to 10 periods
+                canScrollRight={
+                  timeView === "all" ? canScrollRight : timeOffset < 10
+                } // Allow going forward up to 10 periods
+                onScrollLeft={
+                  timeView === "all" ? scrollLeft : goToPreviousPeriod
+                }
+                onScrollRight={
+                  timeView === "all" ? scrollRight : goToNextPeriod
+                }
               />
             </div>
           </div>
           {hasData && (
             <div className="flex items-center gap-2 text-xs text-gray-600 mt-2 flex-wrap">
-              <div className="flex items-center gap-1 px-2 py-1 rounded-full border select-none">
+              <button
+                type="button"
+                onClick={toggleActual}
+                className={`flex items-center gap-1 px-2 py-1 rounded-full border select-none ${
+                  showActual ? "" : "opacity-50 line-through"
+                }`}
+                aria-pressed={showActual}
+              >
                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                 <span>Actual</span>
-              </div>
+              </button>
               <button
                 type="button"
                 onClick={toggleIIR}
-                className={`flex items-center gap-1 px-2 py-1 rounded-full border select-none ${showIIR ? '' : 'opacity-50 line-through'}`}
+                className={`flex items-center gap-1 px-2 py-1 rounded-full border select-none ${
+                  showIIR ? "" : "opacity-50 line-through"
+                }`}
                 aria-pressed={showIIR}
               >
                 <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
@@ -273,12 +479,15 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
               {/* Fixed Y-axis panel */}
               <div className="h-80 w-16 flex-shrink-0">
                 <ResponsiveContainer width="100%" height={320}>
-                  <LineChart data={iirChartData} margin={{ top: 20, right: 0, left: 0, bottom: 5 }}>
-                    <YAxis 
-                      stroke="#64748b" 
-                      fontSize={12} 
+                  <LineChart
+                    data={dataInRange}
+                    margin={{ top: 20, right: 0, left: 0, bottom: 5 }}
+                  >
+                    <YAxis
+                      stroke="#64748b"
+                      fontSize={12}
                       domain={yDomain}
-                      tickFormatter={(value) => `${value}%`} 
+                      tickFormatter={(value) => `${value}%`}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -286,62 +495,89 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
 
               {/* Scrollable chart area */}
               <div
-                ref={setScrollAndChartRef}
+                ref={scrollContainerRef}
                 className="h-80 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 flex-1"
                 onClick={handleChartClick}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
               >
-                <div style={{ minWidth: Math.max(800, iirChartData.length * 60) }}>
+                <div
+                  style={{ minWidth: Math.max(800, dataInRange.length * 60) }}
+                >
                   <ResponsiveContainer width="100%" height={320}>
-                    <LineChart data={iirChartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseLeave}>
+                    <LineChart
+                      data={dataInRange}
+                      margin={{ top: 20, right: 30, left: 10, bottom: 5 }}
+                    >
                       <defs>
-                        <linearGradient id="bodyFatGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
+                        <linearGradient
+                          id="bodyFatGradient"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#ef4444"
+                            stopOpacity={0.3}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#ef4444"
+                            stopOpacity={0.1}
+                          />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
-                      <XAxis 
+                      <XAxis
                         dataKey="timestamp"
                         type="number"
                         scale="time"
                         domain={currentXDomain}
                         stroke="#64748b"
                         fontSize={12}
-                        tickFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd')}
+                        tickFormatter={(timestamp) =>
+                          format(new Date(timestamp), "MMM dd")
+                        }
                       />
                       {/* Hidden Y-axis to lock domain with the fixed axis */}
-                      <YAxis domain={yDomain} stroke="#64748b" fontSize={12} tick={false} axisLine={false} width={0} />
-                      <Tooltip 
+                      <YAxis
+                        domain={yDomain}
+                        stroke="#64748b"
+                        fontSize={12}
+                        tick={false}
+                        axisLine={false}
+                        width={0}
+                      />
+                      <Tooltip
                         formatter={(value, name) => {
-                          if (name === 'bodyFat') return [`${value}%`, 'Body Fat'];
-                          if (name === 'iirFiltered') return [`${value}%`, 'IIR Filter (a=0.3)'];
+                          if (name === "bodyFat")
+                            return [`${value}%`, "Body Fat"];
+                          if (name === "iirFiltered")
+                            return [`${value}%`, "IIR Filter (a=0.3)"];
                           return [`${value}%`, name];
                         }}
-                        labelFormatter={(timestamp) => format(new Date(timestamp), 'MMM dd, yyyy')}
-                        labelStyle={{ color: '#374151' }}
-                        contentStyle={{ 
-                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px'
+                        labelFormatter={(timestamp) =>
+                          format(new Date(timestamp), "MMM dd, yyyy")
+                        }
+                        labelStyle={{ color: "#374151" }}
+                        contentStyle={{
+                          backgroundColor: "rgba(255, 255, 255, 0.95)",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "8px",
                         }}
                       />
 
-                      {isSelecting && refAreaLeft != null && refAreaRight != null && (
-                        <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} />
-                      )}
-
                       {/* Actual body fat line */}
-                      <Line
-                        type="monotone"
-                        dataKey="bodyFat"
-                        stroke="#ef4444"
-                        strokeWidth={3}
-                        dot={<CustomDot />}
-                        connectNulls={false}
-                      />
+                      {showActual && (
+                        <Line
+                          type="monotone"
+                          dataKey="bodyFat"
+                          stroke="#ef4444"
+                          strokeWidth={3}
+                          dot={<CustomDot />}
+                          connectNulls={false}
+                        />
+                      )}
                       {/* IIR Filtered line */}
                       {showIIR && (
                         <Line
@@ -363,7 +599,9 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
               <div className="text-center">
                 <Percent className="h-12 w-12 text-red-400 mx-auto mb-4" />
                 <p className="text-red-600 mb-2">No body fat data available</p>
-                <p className="text-sm text-red-500">Log your body fat percentage to see your progress</p>
+                <p className="text-sm text-red-500">
+                  Log your body fat percentage to see your progress
+                </p>
               </div>
             </div>
           )}
