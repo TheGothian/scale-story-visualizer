@@ -1,44 +1,47 @@
-
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Goal, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
-import { WeightGoal } from '../types/weight';
-import { useUnit } from '../contexts/UnitContext';
-import { toast } from '@/hooks/use-toast';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CalendarIcon, Goal, Trash2 } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { WeightGoal } from "../types/weight";
+import { useUnit } from "../contexts/UnitContext";
+import { toast } from "@/hooks/use-toast";
 
 interface GoalSetterProps {
-  goals: WeightGoal[];
+  goals?: WeightGoal[]; // Make goals optional
   onAddGoal: (goal: WeightGoal) => void;
   onDeleteGoal: (id: string) => void;
 }
 
-export const GoalSetter: React.FC<GoalSetterProps> = ({ 
-  goals, 
-  onAddGoal, 
-  onDeleteGoal 
+export const GoalSetter: React.FC<GoalSetterProps> = ({
+  goals = [], // Provide default empty array
+  onAddGoal,
+  onDeleteGoal,
 }) => {
-  const [targetWeight, setTargetWeight] = useState('');
+  const [targetWeight, setTargetWeight] = useState("");
   const [targetDate, setTargetDate] = useState<Date>();
-  const [goalName, setGoalName] = useState('');
-  const [description, setDescription] = useState('');
+  const [goalName, setGoalName] = useState("");
+  const [description, setDescription] = useState("");
   const { unitSystem, getWeightUnit } = useUnit();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!targetWeight || isNaN(Number(targetWeight))) {
       toast({
         title: "Invalid target weight",
         description: "Please enter a valid target weight.",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -47,7 +50,7 @@ export const GoalSetter: React.FC<GoalSetterProps> = ({
       toast({
         title: "Missing target date",
         description: "Please select a target date for your goal.",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -56,29 +59,29 @@ export const GoalSetter: React.FC<GoalSetterProps> = ({
       toast({
         title: "Missing goal name",
         description: "Please enter a name for your goal.",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
-    const unit = unitSystem === 'metric' ? 'kg' : 'lbs';
+    const unit = unitSystem === "metric" ? "kg" : "lbs";
     const goal: WeightGoal = {
       id: Date.now().toString(),
       name: goalName.trim(),
       targetWeight: Number(targetWeight),
-      targetDate: format(targetDate, 'yyyy-MM-dd'),
+      targetDate: format(targetDate, "yyyy-MM-dd"),
       description: description.trim() || undefined,
       unit,
       createdAt: new Date().toISOString(),
-      isActive: true
+      isActive: true,
     };
 
     onAddGoal(goal);
-    setTargetWeight('');
-    setGoalName('');
-    setDescription('');
+    setTargetWeight("");
+    setGoalName("");
+    setDescription("");
     setTargetDate(undefined);
-    
+
     toast({
       title: "Goal created!",
       description: `Your goal "${goalName}" has been saved.`,
@@ -118,7 +121,9 @@ export const GoalSetter: React.FC<GoalSetterProps> = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="targetWeight">Target Weight ({getWeightUnit()})</Label>
+              <Label htmlFor="targetWeight">
+                Target Weight ({getWeightUnit()})
+              </Label>
               <Input
                 id="targetWeight"
                 type="number"
@@ -142,7 +147,11 @@ export const GoalSetter: React.FC<GoalSetterProps> = ({
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {targetDate ? format(targetDate, "PPP") : <span>Pick target date</span>}
+                    {targetDate ? (
+                      format(targetDate, "PPP")
+                    ) : (
+                      <span>Pick target date</span>
+                    )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -168,7 +177,10 @@ export const GoalSetter: React.FC<GoalSetterProps> = ({
               />
             </div>
 
-            <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
+            <Button
+              type="submit"
+              className="w-full bg-green-600 hover:bg-green-700"
+            >
               <Goal className="mr-2 h-4 w-4" />
               Save Goal
             </Button>
@@ -177,7 +189,7 @@ export const GoalSetter: React.FC<GoalSetterProps> = ({
       </Card>
 
       {/* Active Goals List */}
-      {goals.length > 0 && (
+      {goals && goals.length > 0 && (
         <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader className="pb-4">
             <CardTitle className="text-green-700">Your Goals</CardTitle>
@@ -192,13 +204,18 @@ export const GoalSetter: React.FC<GoalSetterProps> = ({
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <Goal className="h-4 w-4 text-green-600" />
-                      <h4 className="font-semibold text-green-800">{goal.name}</h4>
+                      <h4 className="font-semibold text-green-800">
+                        {goal.name}
+                      </h4>
                     </div>
                     <p className="text-sm text-green-700">
-                      Target: {goal.targetWeight} {goal.unit} by {format(new Date(goal.targetDate), 'MMM dd, yyyy')}
+                      Target: {goal.targetWeight} {goal.unit} by{" "}
+                      {format(new Date(goal.targetDate), "MMM dd, yyyy")}
                     </p>
                     {goal.description && (
-                      <p className="text-xs text-green-600 mt-1">{goal.description}</p>
+                      <p className="text-xs text-green-600 mt-1">
+                        {goal.description}
+                      </p>
                     )}
                   </div>
                   <Button

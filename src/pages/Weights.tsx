@@ -2,15 +2,23 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWeightData } from "@/hooks/useWeightData";
-import { UnitProvider, useUnit } from "@/contexts/UnitContext";
+import { useUnit } from "@/contexts/UnitContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WeightEditDialog } from "@/components/WeightEditDialog";
 import { toast } from "@/hooks/use-toast";
 import { Trash2, Pencil, ArrowLeft } from "lucide-react";
+import { HamburgerMenu } from "@/components/HamburgerMenu";
 import type { WeightEntry } from "@/types/weight";
 
 function WeightsContentInner() {
@@ -23,7 +31,9 @@ function WeightsContentInner() {
   useEffect(() => {
     document.title = "All Weight Data | Bodybuilding Tracker";
     // simple canonical tag
-    const link = document.querySelector("link[rel='canonical']") || document.createElement("link");
+    const link =
+      document.querySelector("link[rel='canonical']") ||
+      document.createElement("link");
     link.setAttribute("rel", "canonical");
     link.setAttribute("href", window.location.href);
     if (!link.parentNode) document.head.appendChild(link);
@@ -46,18 +56,27 @@ function WeightsContentInner() {
   const [query, setQuery] = useState("");
 
   const sortedWeights = useMemo(() => {
-    const list = [...weights].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const list = [...weights].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
     if (!query.trim()) return list;
     const q = query.toLowerCase();
-    return list.filter((w) =>
-      w.date.includes(q) || String(w.weight).includes(q) || (w.note ?? "").toLowerCase().includes(q)
+    return list.filter(
+      (w) =>
+        w.date.includes(q) ||
+        String(w.weight).includes(q) ||
+        (w.note ?? "").toLowerCase().includes(q)
     );
   }, [weights, query]);
 
   const handleEdit = (entry: WeightEntry) => {
     setEditingId(entry.id);
     const targetUnit = getWeightUnit() as "kg" | "lbs";
-    const displayWeight = convertWeight(Number(entry.weight), entry.unit, targetUnit);
+    const displayWeight = convertWeight(
+      Number(entry.weight),
+      entry.unit,
+      targetUnit
+    );
     setEditWeightVal(displayWeight.toFixed(1));
     setEditDate(entry.date);
     setEditNote(entry.note ?? "");
@@ -73,7 +92,11 @@ function WeightsContentInner() {
       const currentUnit = getWeightUnit() as "kg" | "lbs";
       const weightNumber = parseFloat(editWeightVal);
       // Convert back to original unit for storage consistency
-      const weightInOriginal = convertWeight(weightNumber, currentUnit, original.unit);
+      const weightInOriginal = convertWeight(
+        weightNumber,
+        currentUnit,
+        original.unit
+      );
       await editWeight(editingId, {
         weight: Number(weightInOriginal.toFixed(2)),
         date: editDate,
@@ -83,7 +106,11 @@ function WeightsContentInner() {
       setIsDialogOpen(false);
       setEditingId(null);
     } catch (e: any) {
-      toast({ title: "Update failed", description: e?.message ?? "Please try again.", variant: "destructive" });
+      toast({
+        title: "Update failed",
+        description: e?.message ?? "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -92,7 +119,11 @@ function WeightsContentInner() {
       await deleteWeight(id);
       toast({ title: "Entry deleted" });
     } catch (e: any) {
-      toast({ title: "Delete failed", description: e?.message ?? "Please try again.", variant: "destructive" });
+      toast({
+        title: "Delete failed",
+        description: e?.message ?? "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -103,9 +134,11 @@ function WeightsContentInner() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      <HamburgerMenu />
+
       <header className="border-b bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/")}> 
+          <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>
           <h1 className="text-2xl font-bold">All Weight Data</h1>
@@ -116,11 +149,18 @@ function WeightsContentInner() {
         <section className="mb-4">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-muted-foreground">Review, edit, or delete your logged weights.</p>
+              <p className="text-muted-foreground">
+                Review, edit, or delete your logged weights.
+              </p>
             </div>
             <div className="w-56">
               <Label htmlFor="search">Search</Label>
-              <Input id="search" placeholder="Filter by date, value, or note" value={query} onChange={(e) => setQuery(e.target.value)} />
+              <Input
+                id="search"
+                placeholder="Filter by date, value, or note"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
             </div>
           </div>
         </section>
@@ -138,22 +178,43 @@ function WeightsContentInner() {
                       <TableHead>Date</TableHead>
                       <TableHead>Weight ({getWeightUnit()})</TableHead>
                       <TableHead>Note</TableHead>
-                      <TableHead className="w-[120px] text-right">Actions</TableHead>
+                      <TableHead className="w-[120px] text-right">
+                        Actions
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sortedWeights.map((w) => {
-                      const display = convertWeight(Number(w.weight), w.unit, getWeightUnit() as "kg" | "lbs");
+                      const display = convertWeight(
+                        Number(w.weight),
+                        w.unit,
+                        getWeightUnit() as "kg" | "lbs"
+                      );
                       return (
                         <TableRow key={w.id}>
                           <TableCell>{w.date}</TableCell>
                           <TableCell>{display.toFixed(1)}</TableCell>
-                          <TableCell className="max-w-[420px] truncate" title={w.note}>{w.note || "—"}</TableCell>
+                          <TableCell
+                            className="max-w-[420px] truncate"
+                            title={w.note}
+                          >
+                            {w.note || "—"}
+                          </TableCell>
                           <TableCell className="text-right space-x-2">
-                            <Button variant="outline" size="icon" aria-label="Edit" onClick={() => handleEdit(w)}>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              aria-label="Edit"
+                              onClick={() => handleEdit(w)}
+                            >
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="destructive" size="icon" aria-label="Delete" onClick={() => handleDelete(w.id)}>
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              aria-label="Delete"
+                              onClick={() => handleDelete(w.id)}
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </TableCell>
@@ -184,11 +245,7 @@ function WeightsContentInner() {
 }
 
 function WeightsContent() {
-  return (
-    <UnitProvider>
-      <WeightsContentInner />
-    </UnitProvider>
-  );
+  return <WeightsContentInner />;
 }
 
 export default WeightsContent;

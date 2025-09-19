@@ -1,6 +1,49 @@
+import { getWebAuthnSettings } from "@/config/webauthn";
+import { supabase } from "@/integrations/supabase/client";
+export async function getWebAuthnOptions(
+  type: "registration" | "authentication",
+  userId?: string
+) {
+  const settings = getWebAuthnSettings();
+  if (!settings) return null;
+  const timeout =
+    type === "registration"
+      ? settings.timeouts.registration
+      : settings.timeouts.authentication;
+  const { data, error } = await supabase.functions.invoke("webauthn-options", {
+    body: {
+      type,
+      userId: userId ?? null,
+      rpID: settings.rpID,
+      rpName: settings.rpName,
+      userVerification: settings.userVerification,
+      authenticatorAttachment: settings.authenticatorAttachment ?? null,
+      timeout,
+    },
+  });
+  if (error) throw error;
+  return data?.options ?? null;
+}
 
-import { useState, useEffect, createContext, useContext } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+export async function verifyWebAuthn(
+  type: "registration" | "authentication",
+  userId: string | undefined,
+  response: any
+) {
+  const settings = getWebAuthnSettings();
+  if (!settings) return { ok: false };
+  const { data, error } = await supabase.functions.invoke("webauthn-verify", {
+    body: {
+      type,
+      userId: userId ?? null,
+      response,
+      expectedRpID: settings.rpID,
+    },
+  });
+  if (error) throw error;
+  return data;
+}
+import { useState, useEffect, createContext, useContext } from "react";
 
 // Minimal user type for custom auth
 export type AuthUser = {
@@ -18,7 +61,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const TOKEN_KEY = 'custom_auth_token';
+const TOKEN_KEY = "custom_auth_token";
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -33,11 +76,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase.functions.invoke('custom-auth-me', {
+    const { data, error } = await supabase.functions.invoke("custom-auth-me", {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (error || !data?.user) {
-      console.error('custom-auth-me error', error);
+      console.error("custom-auth-me error", error);
       localStorage.removeItem(TOKEN_KEY);
       setUser(null);
     } else {
@@ -53,8 +96,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         loadFromToken();
       }
     };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const setAuth = (token: string, user: AuthUser) => {
@@ -77,7 +120,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

@@ -1,27 +1,25 @@
-import React from 'react';
-import { WeightForm } from '../components/WeightForm';
-import { WeightChart } from '../components/WeightChart';
-import { EventPredictor } from '../components/EventPredictor';
-import { UnitToggle } from '../components/UnitToggle';
-import { UnitProvider } from '../contexts/UnitContext';
-import { Scale, LogOut } from 'lucide-react';
-import { BMICalculator } from '../components/BMICalculator';
-import { EnhancedTrendAnalysis } from '../components/EnhancedTrendAnalysis';
-import { GoalSetter } from '../components/GoalSetter';
+import React, { useEffect } from "react";
+import { WeightForm } from "../components/WeightForm";
+import { WeightChart } from "../components/WeightChart";
+import { EventPredictor } from "../components/EventPredictor";
+import { HamburgerMenu } from "../components/HamburgerMenu";
+import { Scale } from "lucide-react";
+import { BMICalculator } from "../components/BMICalculator";
+import { EnhancedTrendAnalysis } from "../components/EnhancedTrendAnalysis";
+import { GoalSetter } from "../components/GoalSetter";
 
-import { PhaseGoalSetter } from '../components/PhaseGoalSetter';
-import { BodybuildingAnalytics } from '../components/BodybuildingAnalytics';
-import { BodyFatForm } from '../components/BodyFatForm';
-import { BodyFatChart } from '../components/BodyFatChart';
-import { AICoach } from '../components/AICoach';
-import { useAuth } from '../hooks/useAuth';
-import { useAllData } from '../hooks/useAllData';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { toast } from '@/hooks/use-toast';
+import { PhaseGoalSetter } from "../components/PhaseGoalSetter";
+import { BodybuildingAnalytics } from "../components/BodybuildingAnalytics";
+import { BodyFatForm } from "../components/BodyFatForm";
+import { BodyFatChart } from "../components/BodyFatChart";
+import { AICoach } from "../components/AICoach";
+import { useAuth } from "../hooks/useAuth";
+import { useAllData } from "../hooks/useAllData";
+import { useNavigate } from "react-router-dom";
+import { parseISO } from "date-fns";
 
 const IndexContent = () => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const {
     weights,
@@ -41,22 +39,26 @@ const IndexContent = () => {
     deleteBodyComposition,
     editBodyComposition,
     addBodybuildingGoal,
-    deleteBodybuildingGoal
+    deleteBodybuildingGoal,
   } = useAllData();
 
-  const handleSignOut = async () => {
-    await signOut();
-    toast({
-      title: "Signed out",
-      description: "You have been signed out successfully.",
-    });
-    navigate('/auth');
-  };
+  // Redirect to auth if not logged in (use useEffect to avoid setState during render)
+  useEffect(() => {
+    if (!user) {
+      navigate("/auth");
+    }
+  }, [user, navigate]);
 
-  // Redirect to auth if not logged in
+  // Show loading while redirecting
   if (!user) {
-    navigate('/auth');
-    return null;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <Scale className="h-12 w-12 text-blue-600 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-600">Redirecting to authentication...</p>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -72,7 +74,9 @@ const IndexContent = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      <div className="container mx-auto px-4 py-8">
+      <HamburgerMenu />
+
+      <div className="container mx-auto px-4 py-8 pt-20">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
@@ -82,85 +86,94 @@ const IndexContent = () => {
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
               Bodybuilding Tracker
             </h1>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/weights')}
-              className="ml-2"
-            >
-              View All Weights
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/body-fat')}
-              className="ml-2"
-            >
-              Body Fat Entries
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSignOut}
-              className="ml-2"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
           </div>
           <p className="text-gray-600 text-lg">
-            Track your physique transformation and achieve your bodybuilding goals
+            Track your physique transformation and achieve your bodybuilding
+            goals
           </p>
           <p className="text-sm text-gray-500 mt-2">
-            Welcome back, {user.email}!
+            Welcome back, {user?.display_name || user?.email || "User"}!
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Forms */}
-          <div className="space-y-6">
-            <UnitToggle />
+        {/* Full Width Charts Section */}
+        <div className="space-y-6 mb-8">
+          <WeightChart
+            weights={weights}
+            predictions={savedPredictions}
+            weightGoals={weightGoals}
+            onDeleteWeight={deleteWeight}
+            onEditWeight={editWeight}
+            onDeletePrediction={deletePrediction}
+          />
+
+          <BodyFatChart
+            compositions={bodyCompositions}
+            onDeleteComposition={deleteBodyComposition}
+            onEditComposition={editBodyComposition}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Column - Forms and Calculators (1/3 width) */}
+          <div className="lg:col-span-4 space-y-6">
             <WeightForm onAddWeight={addWeight} />
             <BodyFatForm onSaveComposition={saveBodyComposition} />
-            <PhaseGoalSetter 
-              goals={bodybuildingGoals}
-              onAddGoal={addBodybuildingGoal}
-              onDeleteGoal={deleteBodybuildingGoal}
+            <BMICalculator weights={weights} />
+            <EventPredictor
+              weights={weights}
+              onSavePrediction={savePrediction}
             />
-            <GoalSetter 
-              goals={weightGoals}
+            <GoalSetter
+              weightGoals={weightGoals}
               onAddGoal={addGoal}
               onDeleteGoal={deleteGoal}
             />
-            <BMICalculator weights={weights} />
-            <EventPredictor weights={weights} onSavePrediction={savePrediction} />
+            <PhaseGoalSetter
+              bodybuildingGoals={bodybuildingGoals}
+              onAddGoal={addBodybuildingGoal}
+              onDeleteGoal={deleteBodybuildingGoal}
+            />
           </div>
 
-          {/* Right Column - Charts and Analysis */}
-          <div className="lg:col-span-2 space-y-6">
-            <WeightChart 
-              weights={weights}
-              savedPredictions={savedPredictions}
-              weightGoals={weightGoals}
-              onDeleteWeight={deleteWeight}
-              onEditWeight={editWeight}
-              onDeletePrediction={deletePrediction}
-            />
-            
-            <BodyFatChart 
-              compositions={bodyCompositions}
-              onDeleteComposition={deleteBodyComposition}
-              onEditComposition={editBodyComposition}
-            />
-            
-            <BodybuildingAnalytics 
+          {/* Middle Column - Analytics (2/3 width) */}
+          <div className="lg:col-span-8 space-y-6">
+            <BodybuildingAnalytics
               weights={weights}
               compositions={bodyCompositions}
               goals={bodybuildingGoals}
               weightGoals={weightGoals}
             />
-            
-            <EnhancedTrendAnalysis weights={weights} weightGoals={weightGoals} />
+
+            {/* Goal-Specific Enhanced Trend Analysis */}
+            {weightGoals &&
+            weightGoals.filter((goal) => goal.isActive).length > 0 ? (
+              weightGoals
+                .filter((goal) => goal.isActive)
+                .map((goal) => {
+                  // Filter weights to only include data from when this goal was created
+                  const goalWeights = weights.filter(
+                    (weight) =>
+                      parseISO(weight.date) >= parseISO(goal.createdAt)
+                  );
+
+                  return (
+                    <div key={goal.id} className="mb-6">
+                      <EnhancedTrendAnalysis
+                        weights={goalWeights}
+                        weightGoals={[goal]} // Only pass the specific goal
+                        title={`Goal Analysis: ${goal.name}`}
+                      />
+                    </div>
+                  );
+                })
+            ) : (
+              // Fallback to general analysis if no active goals
+              <EnhancedTrendAnalysis
+                weights={weights}
+                weightGoals={weightGoals}
+              />
+            )}
 
             <AICoach />
           </div>
@@ -171,11 +184,7 @@ const IndexContent = () => {
 };
 
 const Index = () => {
-  return (
-    <UnitProvider>
-      <IndexContent />
-    </UnitProvider>
-  );
+  return <IndexContent />;
 };
 
 export default Index;

@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "rpName": "Scale Story Visualizer",
+  "rpID": "localhost",
+  "rpOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+  "userVerification": "preferred",
+  "authenticatorAttachment": "platform",
+  "timeouts": {
+    "registration": 60000,
+    "authentication": 30000
+  }
+}

@@ -12,7 +12,7 @@ import {
   Line,
   LineChart,
 } from "recharts";
-import { Percent } from "lucide-react";
+import { Percent, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { BodyComposition } from "../types/bodybuilding";
 import { format, parseISO } from "date-fns";
 import { useBodyFatChart } from "../hooks/useBodyFatChart";
@@ -71,6 +71,36 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
 
   // Navigation state for time periods
   const [timeOffset, setTimeOffset] = React.useState(0); // 0 = current, -1 = previous, 1 = next, etc.
+
+  // Calculate body fat change between last two entries
+  const bodyFatChange = React.useMemo(() => {
+    const validCompositions = compositions.filter(
+      (comp) => comp.bodyFatPercentage && comp.bodyFatPercentage > 0
+    );
+    if (validCompositions.length < 2) return 0;
+
+    const sortedCompositions = [...validCompositions].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    const latest = sortedCompositions[sortedCompositions.length - 1];
+    const previous = sortedCompositions[sortedCompositions.length - 2];
+
+    return latest.bodyFatPercentage! - previous.bodyFatPercentage!;
+  }, [compositions]);
+
+  const latestBodyFat = React.useMemo(() => {
+    const validCompositions = compositions.filter(
+      (comp) => comp.bodyFatPercentage && comp.bodyFatPercentage > 0
+    );
+    if (validCompositions.length === 0) return null;
+
+    const sortedCompositions = [...validCompositions].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    return sortedCompositions[sortedCompositions.length - 1];
+  }, [compositions]);
 
   // Scroll controls (reuse weight chart scroll hook)
   const {
@@ -342,15 +372,28 @@ export const BodyFatChart: React.FC<BodyFatChartProps> = ({
               Body Fat Progress
             </CardTitle>
             <div className="flex items-center gap-2">
-              {hasData && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleTimeViewChange("all")}
-                  aria-label="Reset zoom"
-                >
-                  Reset Zoom
-                </Button>
+              {latestBodyFat && (
+                <div className="flex items-center gap-2 text-sm">
+                  {bodyFatChange > 0 ? (
+                    <TrendingUp className="h-4 w-4 text-red-500" />
+                  ) : bodyFatChange < 0 ? (
+                    <TrendingDown className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Minus className="h-4 w-4 text-gray-500" />
+                  )}
+                  <span
+                    className={
+                      bodyFatChange > 0
+                        ? "text-red-500"
+                        : bodyFatChange < 0
+                        ? "text-green-500"
+                        : "text-gray-500"
+                    }
+                  >
+                    {bodyFatChange > 0 ? "+" : ""}
+                    {bodyFatChange.toFixed(1)}%
+                  </span>
+                </div>
               )}
 
               {/* Time period selector */}

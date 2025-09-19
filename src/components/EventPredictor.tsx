@@ -1,36 +1,48 @@
-
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Target, TrendingUp, TrendingDown, Save } from 'lucide-react';
-import { format, differenceInDays, parseISO } from 'date-fns';
-import { cn } from '@/lib/utils';
-import { WeightEntry, SavedPrediction } from '../types/weight';
-import { calculateTrend, predictWeight } from '../utils/calculations';
-import { useUnit } from '../contexts/UnitContext';
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  CalendarIcon,
+  Target,
+  TrendingUp,
+  TrendingDown,
+  Save,
+} from "lucide-react";
+import { format, differenceInDays, parseISO } from "date-fns";
+import { cn } from "@/lib/utils";
+import { WeightEntry, SavedPrediction } from "../types/weight";
+import { calculateTrend, predictWeight } from "../utils/calculations";
+import { useUnit } from "../contexts/UnitContext";
 
 interface EventPredictorProps {
-  weights: WeightEntry[];
+  weights?: WeightEntry[]; // Make optional
   onSavePrediction: (prediction: SavedPrediction) => void;
 }
 
-export const EventPredictor: React.FC<EventPredictorProps> = ({ weights, onSavePrediction }) => {
+export const EventPredictor: React.FC<EventPredictorProps> = ({
+  weights = [], // Provide default empty array
+  onSavePrediction,
+}) => {
   const { getWeightUnit, convertWeight, unitSystem } = useUnit();
-  const [eventName, setEventName] = useState('');
+  const [eventName, setEventName] = useState("");
   const [eventDate, setEventDate] = useState<Date>();
   const [prediction, setPrediction] = useState<number | null>(null);
 
   const handlePredict = () => {
-    if (!eventDate || weights.length < 2) return;
+    if (!eventDate || !weights || weights.length < 2) return;
 
     const latestEntry = weights[weights.length - 1];
     const latestDate = parseISO(latestEntry.date);
     const daysUntilEvent = differenceInDays(eventDate, latestDate);
-    
+
     const predictedWeight = predictWeight(weights, daysUntilEvent);
     setPrediction(predictedWeight);
   };
@@ -38,25 +50,25 @@ export const EventPredictor: React.FC<EventPredictorProps> = ({ weights, onSaveP
   const handleSavePrediction = () => {
     if (!eventDate || !eventName || prediction === null) return;
 
-    const currentUnit = getWeightUnit() as 'kg' | 'lbs';
+    const currentUnit = getWeightUnit() as "kg" | "lbs";
     const savedPrediction: SavedPrediction = {
       id: Date.now().toString(),
       name: eventName,
-      targetDate: eventDate.toISOString().split('T')[0],
+      targetDate: eventDate.toISOString().split("T")[0],
       predictedWeight: prediction,
       unit: currentUnit,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
 
     onSavePrediction(savedPrediction);
-    
+
     // Reset form after saving
-    setEventName('');
+    setEventName("");
     setEventDate(undefined);
     setPrediction(null);
   };
 
-  const trend = weights.length > 1 ? calculateTrend(weights) : null;
+  const trend = weights && weights.length > 1 ? calculateTrend(weights) : null;
   const isLosingWeight = trend && trend.slope < 0;
   const currentUnit = getWeightUnit();
 
@@ -91,7 +103,11 @@ export const EventPredictor: React.FC<EventPredictorProps> = ({ weights, onSaveP
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {eventDate ? format(eventDate, "PPP") : <span>Pick a date</span>}
+                {eventDate ? (
+                  format(eventDate, "PPP")
+                ) : (
+                  <span>Pick a date</span>
+                )}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
@@ -109,7 +125,7 @@ export const EventPredictor: React.FC<EventPredictorProps> = ({ weights, onSaveP
 
         <Button
           onClick={handlePredict}
-          disabled={!eventDate || weights.length < 2 || !eventName}
+          disabled={!eventDate || !weights || weights.length < 2 || !eventName}
           className="w-full bg-green-600 hover:bg-green-700"
         >
           Predict Weight
@@ -123,17 +139,21 @@ export const EventPredictor: React.FC<EventPredictorProps> = ({ weights, onSaveP
               ) : (
                 <TrendingUp className="h-5 w-5 text-blue-600" />
               )}
-              <h4 className="font-semibold text-gray-800">Prediction for {eventName}</h4>
+              <h4 className="font-semibold text-gray-800">
+                Prediction for {eventName}
+              </h4>
             </div>
             <p className="text-lg font-bold text-gray-900">
               {prediction.toFixed(1)} {currentUnit}
             </p>
             <p className="text-sm text-gray-600 mt-1">
-              on {format(eventDate, 'MMMM dd, yyyy')}
+              on {format(eventDate, "MMMM dd, yyyy")}
             </p>
-            {weights.length > 0 && (
+            {weights && weights.length > 0 && (
               <p className="text-sm text-gray-500 mt-2">
-                Change from current: {(prediction - weights[weights.length - 1].weight).toFixed(1)} {currentUnit}
+                Change from current:{" "}
+                {(prediction - weights[weights.length - 1].weight).toFixed(1)}{" "}
+                {currentUnit}
               </p>
             )}
             <Button
@@ -146,7 +166,7 @@ export const EventPredictor: React.FC<EventPredictorProps> = ({ weights, onSaveP
           </div>
         )}
 
-        {weights.length < 2 && (
+        {(!weights || weights.length < 2) && (
           <p className="text-sm text-gray-500 text-center py-4">
             Add at least 2 weight entries to enable predictions
           </p>

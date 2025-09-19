@@ -1,3 +1,14 @@
+# Local WebAuthn settings (do not commit)
+src/config/webauthn.settings.local.json
+
+# Edge Function local WebAuthn settings (per-function)
+supabase/functions/**/webauthn.settings.json
+
+# Node modules and build outputs
+node_modules/
+dist/
+.vite/
+.DS_Store
 # Logs
 logs
 *.log

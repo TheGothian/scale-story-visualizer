@@ -1,25 +1,26 @@
-
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Calculator, TrendingUp, TrendingDown } from 'lucide-react';
-import { WeightEntry } from '../types/weight';
-import { useUnit } from '../contexts/UnitContext';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calculator, TrendingUp, TrendingDown } from "lucide-react";
+import { WeightEntry } from "../types/weight";
+import { useUnit } from "../contexts/UnitContext";
 
 interface BMICalculatorProps {
-  weights: WeightEntry[];
+  weights?: WeightEntry[]; // Make weights optional
 }
 
-export const BMICalculator: React.FC<BMICalculatorProps> = ({ weights }) => {
+export const BMICalculator: React.FC<BMICalculatorProps> = ({
+  weights = [],
+}) => {
   const { unitSystem, getWeightUnit, convertWeight } = useUnit();
-  const [height, setHeight] = useState('');
+  const [height, setHeight] = useState("");
   const [bmi, setBMI] = useState<number | null>(null);
 
   // Load height from localStorage
   useEffect(() => {
-    const savedHeight = localStorage.getItem('userHeight');
+    const savedHeight = localStorage.getItem("userHeight");
     if (savedHeight) {
       setHeight(savedHeight);
     }
@@ -28,25 +29,33 @@ export const BMICalculator: React.FC<BMICalculatorProps> = ({ weights }) => {
   // Save height to localStorage
   useEffect(() => {
     if (height) {
-      localStorage.setItem('userHeight', height);
+      localStorage.setItem("userHeight", height);
     }
   }, [height]);
 
   const calculateBMI = () => {
-    if (!height || !weights.length) return;
+    if (!height || !weights || weights.length === 0) return;
 
     const latestWeight = weights[weights.length - 1];
     const heightValue = parseFloat(height);
-    const weightValue = convertWeight(latestWeight.weight, latestWeight.unit, 'kg');
+    const weightValue = convertWeight(
+      latestWeight.weight,
+      latestWeight.unit,
+      "kg"
+    );
 
     let bmiValue: number;
-    if (unitSystem === 'metric') {
+    if (unitSystem === "metric") {
       // Height in cm, weight in kg
       const heightInMeters = heightValue / 100;
       bmiValue = weightValue / (heightInMeters * heightInMeters);
     } else {
       // Height in inches, weight in lbs
-      const weightInLbs = convertWeight(latestWeight.weight, latestWeight.unit, 'lbs');
+      const weightInLbs = convertWeight(
+        latestWeight.weight,
+        latestWeight.unit,
+        "lbs"
+      );
       bmiValue = (weightInLbs / (heightValue * heightValue)) * 703;
     }
 
@@ -55,20 +64,36 @@ export const BMICalculator: React.FC<BMICalculatorProps> = ({ weights }) => {
 
   // Auto-calculate BMI when height or weights change
   useEffect(() => {
-    if (height && weights.length > 0) {
+    if (height && weights && weights.length > 0) {
       calculateBMI();
     }
   }, [height, weights, unitSystem]);
 
   const getBMICategory = (bmiValue: number) => {
-    if (bmiValue < 18.5) return { category: 'Underweight', color: 'text-blue-600', icon: TrendingDown };
-    if (bmiValue < 25) return { category: 'Normal weight', color: 'text-green-600', icon: TrendingUp };
-    if (bmiValue < 30) return { category: 'Overweight', color: 'text-yellow-600', icon: TrendingUp };
-    return { category: 'Obese', color: 'text-red-600', icon: TrendingUp };
+    if (bmiValue < 18.5)
+      return {
+        category: "Underweight",
+        color: "text-blue-600",
+        icon: TrendingDown,
+      };
+    if (bmiValue < 25)
+      return {
+        category: "Normal weight",
+        color: "text-green-600",
+        icon: TrendingUp,
+      };
+    if (bmiValue < 30)
+      return {
+        category: "Overweight",
+        color: "text-yellow-600",
+        icon: TrendingUp,
+      };
+    return { category: "Obese", color: "text-red-600", icon: TrendingUp };
   };
 
-  const heightUnit = unitSystem === 'metric' ? 'cm' : 'inches';
-  const heightPlaceholder = unitSystem === 'metric' ? 'Enter height in cm' : 'Enter height in inches';
+  const heightUnit = unitSystem === "metric" ? "cm" : "inches";
+  const heightPlaceholder =
+    unitSystem === "metric" ? "Enter height in cm" : "Enter height in inches";
 
   return (
     <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
@@ -91,9 +116,15 @@ export const BMICalculator: React.FC<BMICalculatorProps> = ({ weights }) => {
           />
         </div>
 
-        {weights.length > 0 && (
+        {weights && weights.length > 0 && (
           <div className="text-sm text-gray-600">
-            Current weight: {convertWeight(weights[weights.length - 1].weight, weights[weights.length - 1].unit, getWeightUnit() as 'kg' | 'lbs').toFixed(1)} {getWeightUnit()}
+            Current weight:{" "}
+            {convertWeight(
+              weights[weights.length - 1].weight,
+              weights[weights.length - 1].unit,
+              getWeightUnit() as "kg" | "lbs"
+            ).toFixed(1)}{" "}
+            {getWeightUnit()}
           </div>
         )}
 
@@ -128,7 +159,7 @@ export const BMICalculator: React.FC<BMICalculatorProps> = ({ weights }) => {
           </div>
         )}
 
-        {weights.length === 0 && (
+        {(!weights || weights.length === 0) && (
           <p className="text-sm text-gray-500 text-center py-4">
             Add a weight entry to calculate your BMI
           </p>

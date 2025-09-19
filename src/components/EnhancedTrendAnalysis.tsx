@@ -1,29 +1,49 @@
-
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Target, Calendar, Activity, Zap, BarChart3, HelpCircle } from 'lucide-react';
-import { WeightEntry, WeightGoal } from '../types/weight';
-import { calculateTrend } from '../utils/calculations';
-import { useUnit } from '../contexts/UnitContext';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
-import { parseISO, differenceInCalendarDays, addDays, format } from 'date-fns';
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  TrendingUp,
+  TrendingDown,
+  Target,
+  Calendar,
+  Activity,
+  Zap,
+  BarChart3,
+  HelpCircle,
+} from "lucide-react";
+import { WeightEntry, WeightGoal } from "../types/weight";
+import { calculateTrend } from "../utils/calculations";
+import { useUnit } from "../contexts/UnitContext";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
+import { parseISO, differenceInCalendarDays, addDays, format } from "date-fns";
 
 interface EnhancedTrendAnalysisProps {
   weights: WeightEntry[];
   weightGoals?: WeightGoal[];
+  title?: string; // Add optional custom title
 }
 
-export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ weights, weightGoals }) => {
+export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({
+  weights,
+  weightGoals,
+  title = "Enhanced Trend Analysis",
+}) => {
   const { getWeightUnit, convertWeight } = useUnit();
 
   if (weights.length < 2) {
     return (
       <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="text-blue-700">Enhanced Trend Analysis</CardTitle>
+          <CardTitle className="text-blue-700">{title}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-500">Add at least 2 weight entries to see enhanced trend analysis.</p>
+          <p className="text-gray-500">
+            Add at least 2 weight entries to see enhanced trend analysis.
+          </p>
         </CardContent>
       </Card>
     );
@@ -32,24 +52,31 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
   const trend = calculateTrend(weights);
   const isLosingWeight = trend.slope < 0;
   const isGainingWeight = trend.slope > 0;
-  const unit = getWeightUnit() as 'kg' | 'lbs';
+  const unit = getWeightUnit() as "kg" | "lbs";
 
   // Goal-aware metrics
   const currentUnit = unit;
-  const latest = [...weights].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[weights.length - 1];
-  const activeGoals = (weightGoals ?? []).filter(g => g.isActive);
-  const activeGoal = activeGoals.length ? activeGoals.reduce((acc, g) => (parseISO(g.targetDate) < parseISO(acc.targetDate) ? g : acc)) : null;
+  const latest = [...weights].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  )[weights.length - 1];
+  const activeGoals = (weightGoals ?? []).filter((g) => g.isActive);
+  const activeGoal = activeGoals.length
+    ? activeGoals.reduce((acc, g) =>
+        parseISO(g.targetDate) < parseISO(acc.targetDate) ? g : acc
+      )
+    : null;
 
   let requiredWeeklyChange: number | null = null;
   let paceDelta: number | null = null;
-  let paceDeltaColor = 'text-gray-600';
+  let paceDeltaColor = "text-gray-600";
   let paceStatusLabel: string | null = null;
-  let paceStatusColor = 'text-gray-600';
-  let paceStatusType: 'ahead' | 'behind' | 'wrong' | 'neutral' = 'neutral';
-  let paceBadgeClass = 'bg-gray-100 text-gray-700';
+  let paceStatusColor = "text-gray-600";
+  let paceStatusType: "ahead" | "behind" | "wrong" | "neutral" = "neutral";
+  let paceBadgeClass = "bg-gray-100 text-gray-700";
   let paceLine1: string | null = null;
   let paceLine2: string | null = null;
-  let projectionWindow: null | { minDate: Date; maxDate: Date; estDate: Date } = null;
+  let projectionWindow: null | { minDate: Date; maxDate: Date; estDate: Date } =
+    null;
   let weeksUntilTarget: number | null = null;
   let direction = 0;
   let currentWeightVal: number | null = null;
@@ -63,65 +90,108 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
   let arithmeticText: string | null = null;
 
   if (activeGoal && latest) {
-    const currentWeight = convertWeight(latest.weight, latest.unit, currentUnit);
-    const goalWeight = convertWeight(activeGoal.targetWeight, activeGoal.unit, currentUnit);
+    const currentWeight = convertWeight(
+      latest.weight,
+      latest.unit,
+      currentUnit
+    );
+    const goalWeight = convertWeight(
+      activeGoal.targetWeight,
+      activeGoal.unit,
+      currentUnit
+    );
     currentWeightVal = currentWeight;
     goalWeightVal = goalWeight;
     const deltaToGoal = goalWeight - currentWeight;
     direction = Math.sign(deltaToGoal);
-    weeksUntilTarget = differenceInCalendarDays(parseISO(activeGoal.targetDate), new Date()) / 7;
+    weeksUntilTarget =
+      differenceInCalendarDays(parseISO(activeGoal.targetDate), new Date()) / 7;
     if (weeksUntilTarget !== 0) {
       requiredWeeklyChange = deltaToGoal / weeksUntilTarget;
     }
     const actualWeeklyChange = trend.weeklyChange;
     const actualTowards = direction * actualWeeklyChange;
-    const requiredTowards = requiredWeeklyChange != null ? Math.abs(requiredWeeklyChange) : null;
+    const requiredTowards =
+      requiredWeeklyChange != null ? Math.abs(requiredWeeklyChange) : null;
 
     if (requiredTowards != null && Number.isFinite(requiredTowards)) {
       paceDelta = actualTowards - requiredTowards;
       const neededSign = Math.sign(deltaToGoal);
-      const aligned = neededSign === 0 ? true : Math.sign(actualWeeklyChange) === neededSign;
+      const aligned =
+        neededSign === 0 ? true : Math.sign(actualWeeklyChange) === neededSign;
       const epsilon = 1e-3;
 
       if (!aligned || actualWeeklyChange === 0) {
-        paceDeltaColor = 'text-red-600';
-      } else if (Math.abs(actualWeeklyChange) + epsilon >= Math.abs(requiredWeeklyChange!)) {
-        paceDeltaColor = 'text-green-600';
+        paceDeltaColor = "text-red-600";
+      } else if (
+        Math.abs(actualWeeklyChange) + epsilon >=
+        Math.abs(requiredWeeklyChange!)
+      ) {
+        paceDeltaColor = "text-green-600";
       } else {
-        paceDeltaColor = 'text-orange-600';
+        paceDeltaColor = "text-orange-600";
       }
 
       const diff = Math.abs(actualTowards - requiredTowards);
       if (!aligned || actualWeeklyChange === 0) {
-        paceStatusLabel = `Wrong direction · behind by ${diff.toFixed(2)} ${currentUnit}/week`;
-        paceStatusColor = 'text-red-600';
-        paceStatusType = 'wrong';
-        paceBadgeClass = 'bg-red-100 text-red-700';
-      } else if (Math.abs(actualWeeklyChange) + epsilon >= Math.abs(requiredWeeklyChange!)) {
-        const aheadBy = (actualTowards - requiredTowards);
+        paceStatusLabel = `Wrong direction · behind by ${diff.toFixed(
+          2
+        )} ${currentUnit}/week`;
+        paceStatusColor = "text-red-600";
+        paceStatusType = "wrong";
+        paceBadgeClass = "bg-red-100 text-red-700";
+      } else if (
+        Math.abs(actualWeeklyChange) + epsilon >=
+        Math.abs(requiredWeeklyChange!)
+      ) {
+        const aheadBy = actualTowards - requiredTowards;
         paceStatusLabel = `Ahead by ${aheadBy.toFixed(2)} ${currentUnit}/week`;
-        paceStatusColor = 'text-green-600';
-        paceStatusType = 'ahead';
-        paceBadgeClass = 'bg-green-100 text-green-700';
+        paceStatusColor = "text-green-600";
+        paceStatusType = "ahead";
+        paceBadgeClass = "bg-green-100 text-green-700";
       } else {
-        const behindBy = (requiredTowards - actualTowards);
-        paceStatusLabel = `Behind by ${behindBy.toFixed(2)} ${currentUnit}/week`;
-        paceStatusColor = 'text-orange-600';
-        paceStatusType = 'behind';
-        paceBadgeClass = 'bg-orange-100 text-orange-700';
+        const behindBy = requiredTowards - actualTowards;
+        paceStatusLabel = `Behind by ${behindBy.toFixed(
+          2
+        )} ${currentUnit}/week`;
+        paceStatusColor = "text-orange-600";
+        paceStatusType = "behind";
+        paceBadgeClass = "bg-orange-100 text-orange-700";
       }
 
       // Build descriptive lines for the UI
-      const goalDirection = (requiredWeeklyChange! < 0) ? 'weight-loss' : 'weight-gain';
-      const currentStr = `${actualWeeklyChange >= 0 ? '+' : ''}${actualWeeklyChange.toFixed(2)} ${currentUnit}/week`;
-      const requiredStr = `${requiredWeeklyChange! >= 0 ? '+' : ''}${requiredWeeklyChange!.toFixed(2)} ${currentUnit}/week`;
-      const directionShort = (!aligned || actualWeeklyChange === 0) ? 'wrong direction' : 'right direction';
-      const aheadOrBehind = (!aligned || Math.abs(actualWeeklyChange) + epsilon < Math.abs(requiredWeeklyChange!)) ? 'behind' : 'ahead';
-      const arithmetic = (!aligned || actualWeeklyChange === 0)
-        ? `${Math.abs(requiredWeeklyChange!).toFixed(2)} + ${Math.abs(actualWeeklyChange).toFixed(2)} ≈ ${(Math.abs(requiredWeeklyChange!) + Math.abs(actualWeeklyChange)).toFixed(2)}`
-        : (Math.abs(actualWeeklyChange) + epsilon >= Math.abs(requiredWeeklyChange!))
-          ? `${Math.abs(actualWeeklyChange).toFixed(2)} - ${Math.abs(requiredWeeklyChange!).toFixed(2)} ≈ ${diff.toFixed(2)}`
-          : `${Math.abs(requiredWeeklyChange!).toFixed(2)} - ${Math.abs(actualWeeklyChange).toFixed(2)} ≈ ${diff.toFixed(2)}`;
+      const goalDirection =
+        requiredWeeklyChange! < 0 ? "weight-loss" : "weight-gain";
+      const currentStr = `${
+        actualWeeklyChange >= 0 ? "+" : ""
+      }${actualWeeklyChange.toFixed(2)} ${currentUnit}/week`;
+      const requiredStr = `${
+        requiredWeeklyChange! >= 0 ? "+" : ""
+      }${requiredWeeklyChange!.toFixed(2)} ${currentUnit}/week`;
+      const directionShort =
+        !aligned || actualWeeklyChange === 0
+          ? "wrong direction"
+          : "right direction";
+      const aheadOrBehind =
+        !aligned ||
+        Math.abs(actualWeeklyChange) + epsilon < Math.abs(requiredWeeklyChange!)
+          ? "behind"
+          : "ahead";
+      const arithmetic =
+        !aligned || actualWeeklyChange === 0
+          ? `${Math.abs(requiredWeeklyChange!).toFixed(2)} + ${Math.abs(
+              actualWeeklyChange
+            ).toFixed(2)} ≈ ${(
+              Math.abs(requiredWeeklyChange!) + Math.abs(actualWeeklyChange)
+            ).toFixed(2)}`
+          : Math.abs(actualWeeklyChange) + epsilon >=
+            Math.abs(requiredWeeklyChange!)
+          ? `${Math.abs(actualWeeklyChange).toFixed(2)} - ${Math.abs(
+              requiredWeeklyChange!
+            ).toFixed(2)} ≈ ${diff.toFixed(2)}`
+          : `${Math.abs(requiredWeeklyChange!).toFixed(2)} - ${Math.abs(
+              actualWeeklyChange
+            ).toFixed(2)} ≈ ${diff.toFixed(2)}`;
 
       goalDirectionText = goalDirection;
       requiredStrText = requiredStr;
@@ -150,20 +220,25 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
 
   const getStreakIcon = (type: string) => {
     switch (type) {
-      case 'loss': return <TrendingDown className="h-4 w-4 text-green-600" />;
-      case 'gain': return <TrendingUp className="h-4 w-4 text-red-600" />;
-      default: return <Target className="h-4 w-4 text-gray-600" />;
+      case "loss":
+        return <TrendingDown className="h-4 w-4 text-green-600" />;
+      case "gain":
+        return <TrendingUp className="h-4 w-4 text-red-600" />;
+      default:
+        return <Target className="h-4 w-4 text-gray-600" />;
     }
   };
 
   const getBestDay = () => {
-    const pattern = trend.dayOfWeekPattern;
-    const days = Object.entries(pattern).filter(([_, weight]) => weight > 0);
-    if (days.length === 0) return null;
-    
-    return days.reduce((best, [day, weight]) => 
-      weight < best[1] ? [day, weight] : best
-    );
+    // Find the actual best individual weigh-in (lowest weight for weight loss goals)
+    if (!weights || weights.length === 0) return null;
+
+    const sortedWeights = [...weights].sort((a, b) => a.weight - b.weight);
+    const bestWeight = sortedWeights[0];
+    const bestDate = parseISO(bestWeight.date);
+    const dayName = format(bestDate, "EEEE");
+
+    return [dayName, bestWeight.weight];
   };
 
   const bestDay = getBestDay();
@@ -171,14 +246,21 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
   return (
     <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-blue-700">Enhanced Trend Analysis</CardTitle>
+        <CardTitle className="text-blue-700">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          
           {/* Weekly Trend */}
           <div className="flex items-center gap-3 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-blue-100">
-            <div className={`p-2 rounded-full ${isLosingWeight ? 'bg-green-100' : isGainingWeight ? 'bg-red-100' : 'bg-gray-100'}`}>
+            <div
+              className={`p-2 rounded-full ${
+                isLosingWeight
+                  ? "bg-green-100"
+                  : isGainingWeight
+                  ? "bg-red-100"
+                  : "bg-gray-100"
+              }`}
+            >
               {isLosingWeight ? (
                 <TrendingDown className="h-5 w-5 text-green-600" />
               ) : isGainingWeight ? (
@@ -189,8 +271,17 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
             </div>
             <div>
               <p className="text-sm text-gray-600">Weekly Change</p>
-              <p className={`font-semibold ${isLosingWeight ? 'text-green-600' : isGainingWeight ? 'text-red-600' : 'text-gray-600'}`}>
-                {trend.weeklyChange > 0 ? '+' : ''}{trend.weeklyChange.toFixed(2)} {unit}/week
+              <p
+                className={`font-semibold ${
+                  isLosingWeight
+                    ? "text-green-600"
+                    : isGainingWeight
+                    ? "text-red-600"
+                    : "text-gray-600"
+                }`}
+              >
+                {trend.weeklyChange > 0 ? "+" : ""}
+                {trend.weeklyChange.toFixed(2)} {unit}/week
               </p>
             </div>
           </div>
@@ -206,7 +297,11 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
                 ±{trend.volatility.toFixed(2)} {unit}
               </p>
               <p className="text-xs text-purple-500">
-                {trend.volatility < 1 ? 'Very stable' : trend.volatility < 2 ? 'Stable' : 'Variable'}
+                {trend.volatility < 1
+                  ? "Very stable"
+                  : trend.volatility < 2
+                  ? "Stable"
+                  : "Variable"}
               </p>
             </div>
           </div>
@@ -218,11 +313,24 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
             </div>
             <div>
               <p className="text-sm text-gray-600">Acceleration</p>
-              <p className={`font-semibold ${trend.acceleration < 0 ? 'text-green-600' : trend.acceleration > 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                {trend.acceleration > 0 ? '+' : ''}{trend.acceleration.toFixed(3)} {unit}/day²
+              <p
+                className={`font-semibold ${
+                  trend.acceleration < 0
+                    ? "text-green-600"
+                    : trend.acceleration > 0
+                    ? "text-red-600"
+                    : "text-gray-600"
+                }`}
+              >
+                {trend.acceleration > 0 ? "+" : ""}
+                {trend.acceleration.toFixed(3)} {unit}/day²
               </p>
               <p className="text-xs text-amber-600">
-                {Math.abs(trend.acceleration) < 0.01 ? 'Steady' : trend.acceleration < 0 ? 'Improving' : 'Slowing'}
+                {Math.abs(trend.acceleration) < 0.01
+                  ? "Steady"
+                  : trend.acceleration < 0
+                  ? "Improving"
+                  : "Slowing"}
               </p>
             </div>
           </div>
@@ -237,40 +345,75 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
                 <div className="flex items-center gap-2">
                   <p className="text-sm text-gray-600">Pace vs Target</p>
                   {paceStatusLabel && (
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${paceBadgeClass}`}>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${paceBadgeClass}`}
+                    >
                       {paceStatusLabel}
                     </span>
                   )}
                   <TooltipProvider delayDuration={150}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <button type="button" className="ml-1 inline-flex items-center rounded p-1 text-emerald-700/80 hover:text-emerald-800" aria-label="How this is calculated">
+                        <button
+                          type="button"
+                          className="ml-1 inline-flex items-center rounded p-1 text-emerald-700/80 hover:text-emerald-800"
+                          aria-label="How this is calculated"
+                        >
                           <HelpCircle className="h-4 w-4" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
                         <div className="space-y-1">
-                          <p className="text-xs">Required = (target − current) ÷ weeks until target</p>
-                          {weeksUntilTarget != null && requiredWeeklyChange != null && currentWeightVal != null && goalWeightVal != null && Number.isFinite(weeksUntilTarget) && (
-                            <p className="text-xs">
-                              {(goalWeightVal - currentWeightVal).toFixed(2)} ÷ {weeksUntilTarget.toFixed(1)} ≈ {requiredWeeklyChange.toFixed(2)} {unit}/week
-                            </p>
-                          )}
-                          <p className="text-xs">Current trend = weekly change from your weigh-ins</p>
-                          <p className="text-xs">Ahead/behind compares magnitudes; wrong direction adds them.</p>
+                          <p className="text-xs">
+                            Required = (target − current) ÷ weeks until target
+                          </p>
+                          {weeksUntilTarget != null &&
+                            requiredWeeklyChange != null &&
+                            currentWeightVal != null &&
+                            goalWeightVal != null &&
+                            Number.isFinite(weeksUntilTarget) && (
+                              <p className="text-xs">
+                                {(goalWeightVal - currentWeightVal).toFixed(2)}{" "}
+                                ÷ {weeksUntilTarget.toFixed(1)} ≈{" "}
+                                {requiredWeeklyChange.toFixed(2)} {unit}/week
+                              </p>
+                            )}
+                          <p className="text-xs">
+                            Current trend = weekly change from your weigh-ins
+                          </p>
+                          <p className="text-xs">
+                            Ahead/behind compares magnitudes; wrong direction
+                            adds them.
+                          </p>
                         </div>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                {goalDirectionText && requiredStrText && currentStrText && directionShortText && (
-                  <p className="mt-2 text-xs text-emerald-700">
-                    Goal: <span className="font-semibold">{goalDirectionText}</span>. Need <span className="font-semibold">{requiredStrText}</span>. Current: <span className="font-semibold">{currentStrText}</span> — <span className="font-semibold">{directionShortText}</span>.
-                  </p>
-                )}
+                {goalDirectionText &&
+                  requiredStrText &&
+                  currentStrText &&
+                  directionShortText && (
+                    <p className="mt-2 text-xs text-emerald-700">
+                      Goal:{" "}
+                      <span className="font-semibold">{goalDirectionText}</span>
+                      . Need{" "}
+                      <span className="font-semibold">{requiredStrText}</span>.
+                      Current:{" "}
+                      <span className="font-semibold">{currentStrText}</span> —{" "}
+                      <span className="font-semibold">
+                        {directionShortText}
+                      </span>
+                      .
+                    </p>
+                  )}
                 {diffAbs != null && aheadOrBehindText && arithmeticText && (
                   <p className="text-xs text-emerald-700">
-                    You’re <span className="font-semibold">{diffAbs.toFixed(2)} {unit}/week {aheadOrBehindText}</span> ({arithmeticText}).
+                    You're{" "}
+                    <span className="font-semibold">
+                      {diffAbs.toFixed(2)} {unit}/week {aheadOrBehindText}
+                    </span>{" "}
+                    ({arithmeticText}).
                   </p>
                 )}
               </div>
@@ -288,17 +431,20 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
                 {projectionWindow ? (
                   <>
                     <p className="font-semibold text-rose-600">
-                      {format(projectionWindow.minDate, 'MMM d')} – {format(projectionWindow.maxDate, 'MMM d')}
+                      {format(projectionWindow.minDate, "MMM d")} –{" "}
+                      {format(projectionWindow.maxDate, "MMM d")}
                     </p>
-                    <p className="text-xs text-rose-600">Est: {format(projectionWindow.estDate, 'MMM d')}</p>
+                    <p className="text-xs text-rose-600">
+                      Est: {format(projectionWindow.estDate, "MMM d")}
+                    </p>
                   </>
                 ) : (
                   <p className="font-semibold text-gray-600">
                     {weeksUntilTarget != null && weeksUntilTarget <= 0
-                      ? 'Target date passed'
+                      ? "Target date passed"
                       : direction === 0
-                      ? 'At target'
-                      : 'Trend not toward goal'}
+                      ? "At target"
+                      : "Trend not toward goal"}
                   </p>
                 )}
               </div>
@@ -316,7 +462,8 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
                 {trend.longestStreak.count} days
               </p>
               <p className="text-xs text-green-500">
-                {trend.longestStreak.type} {trend.longestStreak.current ? '(current)' : ''}
+                {trend.longestStreak.type}{" "}
+                {trend.longestStreak.current ? "(current)" : ""}
               </p>
             </div>
           </div>
@@ -328,8 +475,14 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
             </div>
             <div>
               <p className="text-sm text-gray-600">Plateau Status</p>
-              <p className={`font-semibold ${trend.plateauDetection.isInPlateau ? 'text-orange-600' : 'text-green-600'}`}>
-                {trend.plateauDetection.isInPlateau ? 'In Plateau' : 'Trending'}
+              <p
+                className={`font-semibold ${
+                  trend.plateauDetection.isInPlateau
+                    ? "text-orange-600"
+                    : "text-green-600"
+                }`}
+              >
+                {trend.plateauDetection.isInPlateau ? "In Plateau" : "Trending"}
               </p>
               {trend.plateauDetection.isInPlateau && (
                 <p className="text-xs text-orange-500">
@@ -347,11 +500,9 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
               </div>
               <div>
                 <p className="text-sm text-gray-600">Best Weigh-in Day</p>
-                <p className="font-semibold text-indigo-600">
-                  {bestDay[0]}
-                </p>
+                <p className="font-semibold text-indigo-600">{bestDay[0]}</p>
                 <p className="text-xs text-indigo-500">
-                  Avg: {bestDay[1].toFixed(1)} {unit}
+                  Best: {bestDay[1].toFixed(1)} {unit}
                 </p>
               </div>
             </div>
@@ -361,19 +512,27 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
         {/* Current Moving Averages */}
         {trend.movingAverage7.length > 0 && (
           <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-green-50">
-            <h4 className="font-semibold text-gray-700 mb-3">Moving Averages</h4>
+            <h4 className="font-semibold text-gray-700 mb-3">
+              Moving Averages
+            </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">7-Day Average</p>
                 <p className="font-semibold text-blue-600">
-                  {trend.movingAverage7[trend.movingAverage7.length - 1]?.toFixed(1)} {unit}
+                  {trend.movingAverage7[
+                    trend.movingAverage7.length - 1
+                  ]?.toFixed(1)}{" "}
+                  {unit}
                 </p>
               </div>
               {trend.movingAverage30.length > 0 && (
                 <div>
                   <p className="text-sm text-gray-600">30-Day Average</p>
                   <p className="font-semibold text-green-600">
-                    {trend.movingAverage30[trend.movingAverage30.length - 1]?.toFixed(1)} {unit}
+                    {trend.movingAverage30[
+                      trend.movingAverage30.length - 1
+                    ]?.toFixed(1)}{" "}
+                    {unit}
                   </p>
                 </div>
               )}
@@ -384,13 +543,21 @@ export const EnhancedTrendAnalysis: React.FC<EnhancedTrendAnalysisProps> = ({ we
         {/* Trend Description */}
         <div className="mt-4 p-4 rounded-lg bg-gray-50">
           <p className="text-sm text-gray-700">
-            <strong>Trend Strength:</strong> {(trend.rSquared * 100).toFixed(1)}% correlation
+            <strong>Trend Strength:</strong> {(trend.rSquared * 100).toFixed(1)}
+            % correlation
           </p>
           <p className="text-sm text-gray-600 mt-1">
-            {trend.rSquared > 0.7 ? 'Strong' : trend.rSquared > 0.4 ? 'Moderate' : 'Weak'} trend consistency.
-            {isLosingWeight && !trend.plateauDetection.isInPlateau && ' Keep up the great work! 🎉'}
-            {isGainingWeight && ' Consider reviewing your routine. 💪'}
-            {trend.plateauDetection.isInPlateau && ' Time to mix things up! 🔄'}
+            {trend.rSquared > 0.7
+              ? "Strong"
+              : trend.rSquared > 0.4
+              ? "Moderate"
+              : "Weak"}{" "}
+            trend consistency.
+            {isLosingWeight &&
+              !trend.plateauDetection.isInPlateau &&
+              " Keep up the great work! 🎉"}
+            {isGainingWeight && " Consider reviewing your routine. 💪"}
+            {trend.plateauDetection.isInPlateau && " Time to mix things up! 🔄"}
           </p>
         </div>
       </CardContent>
