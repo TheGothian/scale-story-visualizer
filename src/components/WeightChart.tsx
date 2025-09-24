@@ -472,9 +472,9 @@ export const WeightChart: React.FC<WeightChartProps> = ({
     <>
       <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
         <CardHeader className="pb-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <CardTitle className="text-blue-700">Weight Progress</CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
               {latestWeight && (
                 <div className="flex items-center gap-2 text-sm">
                   {weightChange > 0 ? (
@@ -500,30 +500,32 @@ export const WeightChart: React.FC<WeightChartProps> = ({
               )}
 
               {/* Time period selector */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 flex-wrap">
                 <Button
                   variant={timeView === "weekly" ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleTimeViewChange("weekly")}
-                  className="text-xs px-2 py-1 h-7"
+                  className="text-xs px-1.5 sm:px-2 py-1 h-6 sm:h-7"
                   title="Current Week (Monday-Sunday)"
                 >
-                  Week
+                  <span className="hidden sm:inline">Week</span>
+                  <span className="sm:hidden">W</span>
                 </Button>
                 <Button
                   variant={timeView === "monthly" ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleTimeViewChange("monthly")}
-                  className="text-xs px-2 py-1 h-7"
+                  className="text-xs px-1.5 sm:px-2 py-1 h-6 sm:h-7"
                   title="Current Month"
                 >
-                  Month
+                  <span className="hidden sm:inline">Month</span>
+                  <span className="sm:hidden">M</span>
                 </Button>
                 <Button
                   variant={timeView === "6month" ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleTimeViewChange("6month")}
-                  className="text-xs px-2 py-1 h-7"
+                  className="text-xs px-1.5 sm:px-2 py-1 h-6 sm:h-7"
                   title="Current Quarter + Previous Quarter (6 months)"
                 >
                   6M
@@ -532,19 +534,21 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                   variant={timeView === "yearly" ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleTimeViewChange("yearly")}
-                  className="text-xs px-2 py-1 h-7"
+                  className="text-xs px-1.5 sm:px-2 py-1 h-6 sm:h-7"
                   title="Current Year"
                 >
-                  Year
+                  <span className="hidden sm:inline">Year</span>
+                  <span className="sm:hidden">Y</span>
                 </Button>
                 <Button
                   variant={timeView === "all" ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleTimeViewChange("all")}
-                  className="text-xs px-2 py-1 h-7"
+                  className="text-xs px-1.5 sm:px-2 py-1 h-6 sm:h-7"
                   title="All Data"
                 >
-                  All
+                  <span className="hidden sm:inline">All</span>
+                  <span className="sm:hidden">A</span>
                 </Button>
               </div>
 
@@ -607,13 +611,18 @@ export const WeightChart: React.FC<WeightChartProps> = ({
         <CardContent>
           <div className="flex items-stretch">
             {/* Fixed Y-axis panel */}
-            <div className="h-80 w-16 flex-shrink-0">
-              <ResponsiveContainer width="100%" height={320}>
+            <div className={`h-80 ${isMobile ? "w-12" : "w-16"} flex-shrink-0`}>
+              <ResponsiveContainer width="100%" height={isMobile ? 250 : 320}>
                 <LineChart
                   data={dataInRange}
                   margin={{ top: 20, right: 0, left: 0, bottom: 5 }}
                 >
-                  <YAxis stroke="#64748b" fontSize={12} domain={yDomain} />
+                  <YAxis
+                    stroke="#64748b"
+                    fontSize={isMobile ? 10 : 12}
+                    domain={yDomain}
+                    width={isMobile ? 40 : 60}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -628,10 +637,15 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                 style={{ minWidth: Math.max(800, dataInRange.length * 60) }}
                 className="select-none"
               >
-                <ResponsiveContainer width="100%" height={320}>
+                <ResponsiveContainer width="100%" height={isMobile ? 250 : 320}>
                   <LineChart
                     data={dataInRange}
-                    margin={{ top: 20, right: 30, left: 10, bottom: 5 }}
+                    margin={{
+                      top: 20,
+                      right: isMobile ? 20 : 30,
+                      left: isMobile ? 5 : 10,
+                      bottom: 5,
+                    }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e0e7ff" />
                     <XAxis
@@ -640,7 +654,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                       scale="time"
                       domain={currentXDomain}
                       stroke="#64748b"
-                      fontSize={12}
+                      fontSize={isMobile ? 10 : 12}
                       tickFormatter={(timestamp) =>
                         format(new Date(timestamp), "MMM dd")
                       }
@@ -649,7 +663,7 @@ export const WeightChart: React.FC<WeightChartProps> = ({
                     <YAxis
                       domain={yDomain}
                       stroke="#64748b"
-                      fontSize={12}
+                      fontSize={isMobile ? 10 : 12}
                       tick={false}
                       axisLine={false}
                       width={0}
