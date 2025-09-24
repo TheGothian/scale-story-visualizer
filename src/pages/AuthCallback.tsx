@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { userManager } from "@/lib/oidc";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function AuthCallback() {
   const { setAuth } = useAuth();
@@ -118,13 +119,13 @@ export default function AuthCallback() {
 
         console.log("Exchanging id_token for app token...");
         try {
-          const { data, error } = await import(
-            "@/integrations/supabase/client"
-          ).then(({ supabase }) =>
-            supabase.functions.invoke("authelia-token-exchange", {
+          const { data, error } = await supabase.functions.invoke(
+            "authelia-token-exchange",
+            {
               body: { id_token: user.id_token },
-            })
+            }
           );
+
           if (error || !data?.token || !data?.user) {
             console.error("token-exchange failed", error, data);
             throw new Error(error?.message || "Token exchange failed");
